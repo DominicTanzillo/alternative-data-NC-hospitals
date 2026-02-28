@@ -673,7 +673,7 @@ def plot_parsimony(df, out):
 # Main Pipeline
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def run_pipeline():
+def run_pipeline(data_path=None):
     """Execute full dual-model analysis pipeline."""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -683,7 +683,9 @@ def run_pipeline():
     print("=" * 65)
     print("STEP 1: Data Loading & Feature Engineering")
     print("=" * 65)
-    df_model, df_no_ed, X_a, y_a, X_b, y_b = load_and_prepare()
+    df_model, df_no_ed, X_a, y_a, X_b, y_b = load_and_prepare(
+        data_path or DATA_PATH
+    )
 
     regions = df_model["Region"].fillna("Unknown")
     rc = regions.value_counts()
@@ -859,5 +861,464 @@ def run_pipeline():
     }
 
 
+def load_panel_year(panel_path, year):
+    """
+    Load a single year slice from a panel CSV and prepare it for the
+    cross-sectional pipeline.
+
+    Maps panel column names to the feature names expected by the pipeline.
+    Returns a DataFrame that can replace the standard merged_county_data.csv.
+    """
+    df = pd.read_csv(panel_path, low_memory=False)
+    df["FIPS"] = df["FIPS"].astype(str).str.zfill(5)
+    df = df[df["Year"] == year].copy()
+
+    if len(df) == 0:
+        raise ValueError(f"No data for year {year} in {panel_path}")
+
+    print(f"Panel slice: {len(df)} counties for year {year}")
+
+    # Convert all non-ID columns to numeric
+    for col in df.columns:
+        if col not in ("FIPS", "County", "Year", "Region"):
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    return df
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Multi-Year Panel Pipeline
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def select_panel_features(df, year_range, min_coverage=0.80):
+    """
+    Automatically select features that have sufficient coverage across the
+    requested year range.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Full panel with FIPS, County, Year, and feature columns.
+    year_range : tuple
+        (start_year, end_year) inclusive.
+    min_coverage : float
+        Minimum fraction of non-null values required for a feature to be
+        included (across all county-years in the range). Default 0.80.
+
+    Returns
+    -------
+    tuple
+        (selected_features, coverage_report) where selected_features is a
+        list of column names and coverage_report is a DataFrame.
+    """
+    scaffold = {"FIPS", "County", "Year", "Region"}
+    candidates = [c for c in df.columns if c not in scaffold]
+
+    report_rows = []
+    selected = []
+
+    for col in candidates:
+        n_total = len(df)
+        n_avail = df[col].notna().sum()
+        coverage = n_avail / n_total if n_total > 0 else 0
+        years_with = sorted(df.loc[df[col].notna(), "Year"].unique())
+
+        report_rows.append({
+            "Feature": col,
+            "Coverage": coverage,
+            "N_Available": n_avail,
+            "N_Total": n_total,
+            "Years": f"{min(years_with)}-{max(years_with)}" if years_with
+                     else "none",
+            "N_Years": len(years_with),
+            "Selected": coverage >= min_coverage,
+        })
+
+        if coverage >= min_coverage:
+            selected.append(col)
+
+    report = pd.DataFrame(report_rows).sort_values("Coverage", ascending=False)
+    return selected, report
+
+
+def analyze_year_ranges(panel_path):
+    """
+    Analyze all possible year ranges and report feature x observation
+    tradeoffs to help choose the optimal window for modeling.
+
+    Prints a summary table and returns the analysis DataFrame.
+    """
+    df = pd.read_csv(panel_path, low_memory=False)
+    for col in df.columns:
+        if col not in ("FIPS", "County", "Year", "Region"):
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    scaffold = {"FIPS", "County", "Year", "Region"}
+    all_years = sorted(df["Year"].unique())
+    candidates = [c for c in df.columns if c not in scaffold]
+
+    print("=" * 70)
+    print("YEAR RANGE ANALYSIS: Feature Coverage vs Temporal Depth")
+    print("=" * 70)
+    print()
+
+    rows = []
+    for start in all_years:
+        for end in all_years:
+            if end < start:
+                continue
+            mask = (df["Year"] >= start) & (df["Year"] <= end)
+            subset = df[mask]
+            n_years = end - start + 1
+            n_obs = len(subset)
+
+            # Count features with >= 80% coverage in this window
+            n_feat_80 = 0
+            n_feat_100 = 0
+            for col in candidates:
+                cov = subset[col].notna().mean()
+                if cov >= 0.80:
+                    n_feat_80 += 1
+                if cov >= 0.99:
+                    n_feat_100 += 1
+
+            rows.append({
+                "Start": start, "End": end,
+                "N_Years": n_years, "N_Obs": n_obs,
+                "Features_80pct": n_feat_80,
+                "Features_100pct": n_feat_100,
+            })
+
+    analysis = pd.DataFrame(rows)
+
+    # Print key configurations
+    print(f"{'Range':<12} {'Years':>5} {'Obs':>5} "
+          f"{'Feat(>=80%)':>10} {'Feat(100%)':>10}")
+    print("-" * 50)
+    key_ranges = [
+        (2015, 2023), (2017, 2023), (2018, 2023), (2019, 2023),
+        (2020, 2023), (2018, 2021), (2019, 2022),
+    ]
+    for s, e in key_ranges:
+        row = analysis[(analysis["Start"] == s) & (analysis["End"] == e)]
+        if not row.empty:
+            r = row.iloc[0]
+            print(f"  {s}-{e}    {r['N_Years']:>5} {r['N_Obs']:>5} "
+                  f"{r['Features_80pct']:>10} {r['Features_100pct']:>10}")
+
+    # Identify the "sweet spot" -- maximize n_years * n_features
+    analysis["Score"] = analysis["N_Years"] * analysis["Features_80pct"]
+    best = analysis.loc[analysis["Score"].idxmax()]
+    print(f"\nRecommended range (max years x features): "
+          f"{int(best['Start'])}-{int(best['End'])} "
+          f"({int(best['N_Years'])} years, "
+          f"{int(best['Features_80pct'])} features, "
+          f"{int(best['N_Obs'])} obs)")
+
+    # Also recommend for different priorities
+    deep = analysis[analysis["N_Years"] == analysis["N_Years"].max()]
+    deep_best = deep.loc[deep["Features_80pct"].idxmax()]
+    print(f"  Max temporal depth: "
+          f"{int(deep_best['Start'])}-{int(deep_best['End'])} "
+          f"({int(deep_best['N_Years'])} years, "
+          f"{int(deep_best['Features_80pct'])} features)")
+
+    rich = analysis.loc[analysis["Features_80pct"].idxmax()]
+    print(f"  Max feature richness: "
+          f"{int(rich['Start'])}-{int(rich['End'])} "
+          f"({int(rich['N_Years'])} years, "
+          f"{int(rich['Features_80pct'])} features)")
+
+    return analysis
+
+
+def run_panel_pipeline(panel_path, start_year=None, end_year=None,
+                       min_coverage=0.80, target_col=None,
+                       output_dir=None):
+    """
+    Run the modeling pipeline on a multi-year panel.
+
+    Automatically selects features based on coverage in the specified year
+    range. Supports three modes:
+
+    1. Pooled cross-section: All years pooled together with year fixed effects
+    2. Per-year loop: Run the cross-sectional pipeline separately for each year
+    3. Coverage report only: When no target variable is available (awaiting SEDD)
+
+    Parameters
+    ----------
+    panel_path : str
+        Path to panel CSV (e.g., data/processed/panel_nc.csv).
+    start_year, end_year : int, optional
+        Year range to use. If None, auto-detected from data.
+    min_coverage : float
+        Minimum feature coverage to include (default 0.80).
+    target_col : str, optional
+        Name of the target column (ED visits). If None and no ED column
+        found, runs in coverage-report-only mode.
+    output_dir : str, optional
+        Output directory (default: results/panel/).
+    """
+    out = Path(output_dir or "results/panel")
+    out.mkdir(parents=True, exist_ok=True)
+
+    # Load panel
+    df = pd.read_csv(panel_path, low_memory=False)
+    df["FIPS"] = df["FIPS"].astype(str).str.zfill(5)
+    for col in df.columns:
+        if col not in ("FIPS", "County", "Year", "Region"):
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    all_years = sorted(df["Year"].unique())
+    if start_year is None:
+        start_year = min(all_years)
+    if end_year is None:
+        end_year = max(all_years)
+
+    mask = (df["Year"] >= start_year) & (df["Year"] <= end_year)
+    df = df[mask].copy()
+    n_counties = df["FIPS"].nunique()
+    n_years = df["Year"].nunique()
+
+    print("=" * 70)
+    print(f"PANEL PIPELINE: {n_counties} counties x {n_years} years "
+          f"({start_year}-{end_year})")
+    print(f"Observations: {len(df)}  |  "
+          f"Min coverage threshold: {min_coverage:.0%}")
+    print("=" * 70)
+
+    # Feature selection
+    selected, report = select_panel_features(df, (start_year, end_year),
+                                              min_coverage)
+    report.to_csv(out / "feature_coverage.csv", index=False)
+
+    n_selected = len(selected)
+    n_total = len(report)
+    print(f"\nFeature selection: {n_selected} / {n_total} features "
+          f"meet {min_coverage:.0%} coverage")
+
+    # Categorize selected features
+    categories = {
+        "Demographic/Economic": [f for f in selected
+                                  if any(f.startswith(p) for p in
+                                         ["Poverty", "Median", "Child",
+                                          "Unemployment", "EP_", "RPL_",
+                                          "E_TOTPOP"])],
+        "Health (PLACES)": [f for f in selected
+                            if any(f.endswith(s) for s in
+                                   ["_prevalence"])],
+        "Health (CHR)": [f for f in selected if f.startswith("chr_")],
+        "Insurance/Enrollment": [f for f in selected
+                                  if any(f.startswith(p) for p in
+                                         ["MA_", "Medicaid"])],
+    }
+    for cat, feats in categories.items():
+        if feats:
+            print(f"  {cat}: {len(feats)}")
+            for f in feats[:5]:
+                cov = report.loc[report["Feature"] == f, "Coverage"].values
+                print(f"    {f} ({cov[0]:.0%})" if len(cov) > 0 else
+                      f"    {f}")
+            if len(feats) > 5:
+                print(f"    ... and {len(feats) - 5} more")
+
+    # Check for target variable
+    target_found = False
+    if target_col and target_col in df.columns:
+        target_found = True
+    else:
+        # Look for common ED visit column names
+        for candidate in ["Total_ED", "ED_visits", "ed_visits",
+                          "SEDD_visits", "sedd_total"]:
+            if candidate in df.columns and df[candidate].notna().any():
+                target_col = candidate
+                target_found = True
+                break
+
+    if not target_found:
+        print(f"\n{'=' * 70}")
+        print("TARGET VARIABLE NOT FOUND")
+        print("=" * 70)
+        print("No ED visit column detected in the panel. The panel has "
+              "all predictor")
+        print("variables ready. Once HCUP SEDD data is available:")
+        print(f"  1. Place SEDD files in data/raw/sedd/")
+        print(f"  2. Rebuild: python -m src.data_acquisition.build_panel")
+        print(f"  3. Re-run:  python -m src.model.pipeline --panel "
+              f"{panel_path} --year-range {start_year}-{end_year}")
+        print(f"\nFeature coverage report saved to: "
+              f"{out / 'feature_coverage.csv'}")
+
+        # Still produce the year-range analysis
+        print()
+        analyze_year_ranges(panel_path)
+        return {"features": selected, "coverage": report}
+
+    # ── With target variable: run full modeling ──
+
+    # Feature engineering
+    if "E_TOTPOP" in df.columns:
+        df["log_Pop"] = np.log(df["E_TOTPOP"].clip(lower=1))
+    if "MA_Enrollment_Annual" in df.columns and "E_TOTPOP" in df.columns:
+        df["log_MA"] = np.log1p(df["MA_Enrollment_Annual"])
+    if "Medicaid_Enrollment" in df.columns and "E_TOTPOP" in df.columns:
+        df["log_Medicaid"] = np.log1p(df["Medicaid_Enrollment"])
+        df["pub_insured_pct"] = (
+            (df.get("MA_Enrollment_Annual", 0) +
+             df["Medicaid_Enrollment"])
+            / df["E_TOTPOP"].clip(lower=1) * 100
+        )
+
+    df["log_ED"] = np.log(df[target_col].clip(lower=1))
+    df["ED_rate_per_1000"] = df[target_col] / df["E_TOTPOP"].clip(lower=1) * 1000
+
+    # Build feature matrix
+    engineered = ["log_Pop", "log_MA", "log_Medicaid", "pub_insured_pct"]
+    feature_cols = selected + [f for f in engineered if f in df.columns]
+    feature_cols = list(dict.fromkeys(feature_cols))  # dedupe, preserve order
+
+    # Split: counties with ED > 0 vs healthcare deserts
+    df_model = df[df[target_col] > 0].copy()
+    df_no_ed = df[df[target_col] == 0].copy()
+
+    avail_features = [c for c in feature_cols if c in df_model.columns]
+    X = df_model[avail_features]
+    y_log = df_model["log_ED"]
+    y_rate = df_model["ED_rate_per_1000"]
+
+    print(f"\nModeling: {len(df_model)} obs with ED > 0, "
+          f"{len(df_no_ed)} healthcare deserts")
+    print(f"Features: {len(avail_features)}  |  Target: {target_col}")
+
+    # Run cross-validation
+    print(f"\n{'=' * 70}")
+    print("CROSS-VALIDATION: Model A — log(ED visits)")
+    print("=" * 70)
+    cv_a = cross_validate_models(X, y_log, get_models(), "log(ED)")
+    cv_a.to_csv(out / "cv_results_panel.csv", index=False)
+
+    print(f"\nTop 3 models:")
+    print(cv_a.head(3)[["Model", "CV_R2_mean", "CV_R2_std",
+                         "Train_R2", "Overfit_Gap"]].to_string(index=False))
+
+    # Feature importance with best model
+    best_name = cv_a.iloc[0]["Model"]
+    best_pipe = get_models()[best_name]
+    best_pipe.fit(X, y_log)
+    imp = compute_feature_importance(best_pipe, X, y_log, avail_features)
+    imp.to_csv(out / "feature_importance_panel.csv", index=False)
+
+    print(f"\n{'=' * 70}")
+    print(f"TOP PREDICTORS ({best_name})")
+    print("=" * 70)
+    print(imp.head(15).to_string(index=False))
+
+    # Per-year cross-validation (how stable is performance over time?)
+    print(f"\n{'=' * 70}")
+    print("PER-YEAR MODEL STABILITY")
+    print("=" * 70)
+    year_results = []
+    for yr in sorted(df_model["Year"].unique()):
+        yr_mask = df_model["Year"] == yr
+        X_yr = X[yr_mask]
+        y_yr = y_log[yr_mask]
+        if len(X_yr) < 20:
+            continue
+        cv = KFold(n_splits=min(5, len(X_yr) // 5), shuffle=True,
+                   random_state=RANDOM_STATE)
+        pipe = get_models()[best_name]
+        scores = cross_val_score(pipe, X_yr, y_yr, cv=cv, scoring="r2")
+        year_results.append({
+            "Year": yr, "N_Counties": len(X_yr),
+            "CV_R2_mean": scores.mean(), "CV_R2_std": scores.std(),
+        })
+        print(f"  {yr}: n={len(X_yr)}, "
+              f"R² = {scores.mean():.3f} +/- {scores.std():.3f}")
+
+    if year_results:
+        pd.DataFrame(year_results).to_csv(
+            out / "per_year_stability.csv", index=False)
+
+    print(f"\n{'=' * 70}")
+    print("PANEL PIPELINE COMPLETE")
+    print("=" * 70)
+    print(f"Results saved to: {out.resolve()}")
+
+    return {
+        "cv": cv_a, "feature_importance": imp,
+        "features": avail_features, "coverage": report,
+        "per_year": year_results,
+    }
+
+
 if __name__ == "__main__":
-    run_pipeline()
+    import sys
+
+    panel_path = None
+    year = None
+    year_range = None
+    min_cov = 0.80
+    analyze_only = False
+
+    i = 1
+    while i < len(sys.argv):
+        if sys.argv[i] == "--panel" and i + 1 < len(sys.argv):
+            panel_path = sys.argv[i + 1]
+            i += 2
+        elif sys.argv[i] == "--year" and i + 1 < len(sys.argv):
+            year = int(sys.argv[i + 1])
+            i += 2
+        elif sys.argv[i] == "--year-range" and i + 1 < len(sys.argv):
+            parts = sys.argv[i + 1].split("-")
+            year_range = (int(parts[0]), int(parts[1]))
+            i += 2
+        elif sys.argv[i] == "--min-coverage" and i + 1 < len(sys.argv):
+            min_cov = float(sys.argv[i + 1])
+            i += 2
+        elif sys.argv[i] == "--analyze":
+            analyze_only = True
+            i += 1
+        elif sys.argv[i] == "--help":
+            print("Excess ED Burden Pipeline")
+            print("=" * 50)
+            print()
+            print("Usage:")
+            print("  python -m src.model.pipeline"
+                  "                    # cross-section (default)")
+            print("  python -m src.model.pipeline --panel PATH "
+                  "--year YYYY    # single year from panel")
+            print("  python -m src.model.pipeline --panel PATH "
+                  "--year-range 2018-2023")
+            print("  python -m src.model.pipeline --panel PATH "
+                  "--analyze      # coverage analysis only")
+            print()
+            print("Options:")
+            print("  --panel PATH        Panel CSV path")
+            print("  --year YYYY         Single year (cross-section)")
+            print("  --year-range S-E    Year range (multi-year pipeline)")
+            print("  --min-coverage F    Min feature coverage, 0-1 "
+                  "(default: 0.80)")
+            print("  --analyze           Print year-range analysis only")
+            sys.exit(0)
+        else:
+            i += 1
+
+    if panel_path and analyze_only:
+        analyze_year_ranges(panel_path)
+    elif panel_path and year_range:
+        run_panel_pipeline(panel_path,
+                           start_year=year_range[0],
+                           end_year=year_range[1],
+                           min_coverage=min_cov)
+    elif panel_path and year:
+        print(f"Running pipeline on panel year {year} from {panel_path}")
+        panel_df = load_panel_year(panel_path, year)
+        tmp_path = Path(f"data/processed/panel_year_{year}.csv")
+        tmp_path.parent.mkdir(parents=True, exist_ok=True)
+        panel_df.to_csv(tmp_path, index=False)
+        run_pipeline(data_path=tmp_path)
+    elif panel_path:
+        # Default: run with full year range
+        run_panel_pipeline(panel_path, min_coverage=min_cov)
+    else:
+        run_pipeline()

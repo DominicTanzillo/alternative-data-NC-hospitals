@@ -20,7 +20,7 @@ We use the term "alternative data" in the same sense as finance: non-traditional
 |---|---|---|---|
 | **CMS Medicare/Medicaid Enrollment** | Insurance coverage landscape | Monthly | 2007-present |
 | **CDC Social Vulnerability Index (SVI)** | Socioeconomic risk factors (4 themes) | Biennial | 2010-2022 |
-| **CDC PLACES** | Chronic disease prevalence (40 indicators) | Annual | 2020-2025 releases |
+| **CDC PLACES** | Chronic disease prevalence (40+ indicators) | Annual | 2020-2025 releases (county data years 2017-2023) |
 | **HRSA Area Health Resource File** | Healthcare workforce & infrastructure | Annual | 2010-present |
 | **BLS Local Area Unemployment** | Economic conditions | Monthly | 1990-present |
 | **Census SAIPE** | Poverty and income | Annual | 1995-present |
@@ -109,35 +109,60 @@ The pipeline includes a data loader (`src/database_read/load_sedd.py`) for HCUP 
 - **State coverage**: NC (2007-2023), SC (2006-2023); VA is not available in SEDD
 - **Usage**: `python -m src.database_read.load_sedd data/SEDD/nc_sedd.csv --year 2021`
 
+## Data Coverage Matrix (2015-2023)
+
+The panel builder downloads and assembles data from multiple public sources. Coverage varies by source:
+
+| Data Source | 2015 | 2016 | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | Download |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Census SAIPE (poverty, income) | Y | Y | Y | Y | Y | Y | Y | Y | Y | Auto (API) |
+| BLS LAUS (unemployment) | Y | Y | Y | Y | Y | Y | Y | Y | Y | Auto (API) |
+| CDC SVI (social vulnerability) | cf | Y | cf | Y | cf | Y | cf | Y | cf | Auto (CSV) |
+| CDC PLACES (chronic disease) | - | - | Y* | Y | Y | Y | Y | Y | Y | Auto (SODA) |
+| County Health Rankings | - | - | Y | Y | Y | Y | Y | Y | Y | Auto (CSV) |
+| CMS MA Enrollment | Y | Y | Y | Y | Y | Y | Y | Y | Y | Auto (ZIP) |
+| NC Medicaid | Y | Y | Y | Y | Y | Y | Y | Y | Y | Auto (XLSX) |
+| HCUP SEDD (target: ED visits) | D | D | D | D | D | D | D | D | D | DUA |
+
+**Legend:** Y = available, D = DUA required, cf = carry-forward from prior SVI release, - = not available for this year, Y* = partial measures only (subset of BRFSS indicators)
+
 ## Project Structure
 
 ```
 .
 ├── src/
 │   ├── model/
-│   │   ├── pipeline.py          # Cross-sectional analysis pipeline
-│   │   └── forecast.py          # Temporal forecasting & risk tiers
+│   │   ├── pipeline.py              # Cross-sectional analysis pipeline
+│   │   └── forecast.py              # Temporal forecasting & risk tiers
 │   ├── data_acquisition/
-│   │   ├── build_panel.py       # Multi-year county panel builder
-│   │   └── README_DATA_SOURCES.md  # Data procurement guide
+│   │   ├── download_public_data.py  # Automated data downloader
+│   │   ├── build_panel.py           # Multi-year county panel builder
+│   │   └── README_DATA_SOURCES.md   # Data procurement guide
 │   ├── database_read/
-│   │   ├── ED_Visits.py         # PDF extraction for NC DETECT data
-│   │   ├── load_sedd.py         # HCUP SEDD county aggregation
-│   │   └── read_cdc.py          # CDC data processing
+│   │   ├── ED_Visits.py             # PDF extraction for NC DETECT data
+│   │   ├── load_sedd.py             # HCUP SEDD county aggregation
+│   │   └── read_cdc.py              # CDC data processing
 │   └── graph_making/
-│       └── nc_map.py            # Choropleth map generation
-├── data/                        # NOT tracked in git (see .gitignore)
-│   ├── raw/                     # Untouched downloads by source
-│   ├── processed/               # Cleaned county-year panels
-│   └── final/                   # Pipeline-ready merged datasets
+│       └── nc_map.py                # Choropleth map generation
+├── data/                            # NOT tracked in git (see .gitignore)
+│   ├── raw/                         # Untouched downloads by source
+│   │   ├── saipe/                   #   Census SAIPE
+│   │   ├── bls_laus/                #   BLS unemployment
+│   │   ├── places/                  #   CDC PLACES
+│   │   ├── chr/                     #   County Health Rankings
+│   │   ├── svi/                     #   CDC SVI
+│   │   ├── ma_enrollment/           #   CMS MA enrollment
+│   │   └── medicaid_nc/             #   NC Medicaid
+│   ├── processed/                   # Cleaned county-year panels
+│   └── final/                       # Pipeline-ready merged datasets
 ├── helpers/
-│   └── dictionaries.py          # County-to-region mappings
-├── results/                     # Cross-sectional pipeline outputs
-│   └── forecast/                # Temporal forecast outputs
+│   └── dictionaries.py              # County-to-region mappings
+├── results/                         # Cross-sectional pipeline outputs
+│   └── forecast/                    # Temporal forecast outputs
 ├── notebooks/
-│   ├── analysis.ipynb           # Publication walkthrough
-│   ├── dominicworkbook.ipynb    # Data merging & need scores
-│   └── andrewworkbook.ipynb     # EDA & initial model comparison
+│   ├── analysis.ipynb               # Publication walkthrough
+│   ├── dominicworkbook.ipynb        # Data merging & need scores
+│   └── andrewworkbook.ipynb         # EDA & initial model comparison
 ├── requirements.txt
 └── README.md
 ```
@@ -152,7 +177,7 @@ for download instructions and URLs for every data source.
 # Install dependencies
 pip install -r requirements.txt
 
-# Run the full pipeline
+# Run the full cross-sectional pipeline (Phase 1)
 python -m src.model.pipeline
 ```
 
@@ -169,12 +194,33 @@ Outputs are saved to `results/`:
 ### Phase 2: Multi-Year Panel Analysis
 
 ```bash
-# Build county x year panel from downloaded data sources
+# Step 1: Download all public data (fully automated)
+python -m src.data_acquisition.download_public_data
+
+# Step 2: Build county x year panel (100 counties x 9 years = 900 obs)
 python -m src.data_acquisition.build_panel --state NC --years 2015-2023
 
-# Train temporal model and generate forecasts
+# Step 3a: Analyze optimal year ranges given feature coverage
+python -m src.model.pipeline --panel data/processed/panel_nc.csv --analyze
+
+# Step 3b: Run multi-year pipeline (auto-selects features by coverage)
+python -m src.model.pipeline --panel data/processed/panel_nc.csv --year-range 2018-2023
+
+# Step 3c: Run single-year cross-section from the panel
+python -m src.model.pipeline --panel data/processed/panel_nc.csv --year 2021
+
+# Step 4: Train temporal model and generate forecasts
 python -m src.model.forecast --panel data/processed/panel_nc.csv
 ```
+
+**Year Range Tradeoffs:**
+
+| Range | Years | Obs | Features (>=80%) | Notes |
+|---|---|---|---|---|
+| 2015-2023 | 9 | 900 | 24 | Max depth, structural features only |
+| 2017-2023 | 7 | 700 | 54 | **Recommended** (max years x features) |
+| 2018-2023 | 6 | 600 | 58 | Best balance with full PLACES coverage |
+| 2020-2023 | 4 | 400 | 60 | Max features, fewer observations |
 
 ### Phase 3: Forward Projection (Government Deliverable)
 
