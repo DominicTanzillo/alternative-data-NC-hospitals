@@ -206,3 +206,7 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 duke_redcap_submission.docx
+
+# Raw and processed data files (too large for GitHub; document sources in README)
+data/
+!data/.gitkeep
