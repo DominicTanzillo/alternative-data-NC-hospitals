@@ -1,24 +1,34 @@
-# Identifying Underserved Healthcare Counties Using Alternative Data Sources
+# Alternative Data as Predictors of Healthcare Quality
 
-A reproducible pipeline for identifying counties with excess emergency department (ED) burden using publicly available, non-traditional ("alternative") data sources. Applied to North Carolina's 100 counties as a proof of concept, with a design generalizable to any US state.
+A reproducible pipeline that uses publicly available "alternative" data to predict county-level emergency department burden, identify underserved communities, and forecast which counties need intervention -- without requiring proprietary claims data. Applied to North Carolina's 100 counties with a design generalizable to any US state.
 
 ## Research Question
 
-**Can publicly available alternative data sources predict county-level emergency department utilization, and can the model residuals identify systematically underserved communities?**
+**Can publicly available alternative data sources serve as leading indicators of healthcare quality at the county level, enabling proactive identification of communities trending toward crisis?**
+
+## Why This Matters
+
+Healthcare quality assessment traditionally requires expensive proprietary data (claims, EMRs, provider surveys) that is slow to obtain, limited in geographic scope, and difficult to replicate. By the time conventional analyses identify underserved communities, the crisis is already entrenched.
+
+This project demonstrates that **freely available federal datasets** -- updated monthly to annually -- can predict ED utilization patterns, identify excess burden, and forecast future deterioration. The same predictors are available for every US county, making this a scalable, reproducible framework for any state or region.
 
 ## What Makes This "Alternative Data"?
 
-Traditional healthcare needs assessments rely on proprietary claims data, provider surveys, and patient-reported outcomes — all expensive, slow, and difficult to access. This project uses exclusively **publicly available, nationally standardized datasets** that are updated regularly and cover every US county:
+We use the term "alternative data" in the same sense as finance: non-traditional data sources that provide actionable signals ahead of conventional indicators. Every predictor in this model is publicly available, nationally standardized, and updated regularly:
 
-| Data Source | What It Captures | Update Frequency |
-|---|---|---|
-| **CMS Medicare/Medicaid Enrollment** | Insurance coverage landscape | Monthly |
-| **CDC Social Vulnerability Index (SVI)** | Socioeconomic risk factors (4 themes) | Biennial |
-| **CDC PLACES** | Chronic disease prevalence (age-adjusted) | Annual |
-| **HRSA Area Health Resource File** | Healthcare workforce & infrastructure | Annual |
-| **USDA Rural-Urban Codes** | Rurality classification | Periodic |
+| Data Source | What It Captures | Update Frequency | Years Available |
+|---|---|---|---|
+| **CMS Medicare/Medicaid Enrollment** | Insurance coverage landscape | Monthly | 2007-present |
+| **CDC Social Vulnerability Index (SVI)** | Socioeconomic risk factors (4 themes) | Biennial | 2010-2022 |
+| **CDC PLACES** | Chronic disease prevalence (40 indicators) | Annual | 2020-2025 releases |
+| **HRSA Area Health Resource File** | Healthcare workforce & infrastructure | Annual | 2010-present |
+| **BLS Local Area Unemployment** | Economic conditions | Monthly | 1990-present |
+| **Census SAIPE** | Poverty and income | Annual | 1995-present |
+| **FCC Broadband Deployment** | Digital/telehealth access | Semi-annual | 2009-present |
+| **County Health Rankings** | Composite health outcomes | Annual | 2010-present |
+| **USDA Rural-Urban Codes** | Rurality classification | Periodic | 2003-2023 |
 
-The ED visit data (target variable) comes from **NC DETECT**, North Carolina's syndromic surveillance system. For other states, equivalent data is available through state health departments or HCUP's State Inpatient/ED Databases.
+The ED visit data (target variable) uses **HCUP SEDD** (State Emergency Department Databases), which provides residence-based visit counts by patient county of residence. For the current proof-of-concept, facility-based data from NC DETECT is used.
 
 ## Methodology
 
@@ -105,33 +115,36 @@ The pipeline includes a data loader (`src/database_read/load_sedd.py`) for HCUP 
 .
 ├── src/
 │   ├── model/
-│   │   └── pipeline.py          # Main analysis pipeline
+│   │   ├── pipeline.py          # Cross-sectional analysis pipeline
+│   │   └── forecast.py          # Temporal forecasting & risk tiers
+│   ├── data_acquisition/
+│   │   ├── build_panel.py       # Multi-year county panel builder
+│   │   └── README_DATA_SOURCES.md  # Data procurement guide
 │   ├── database_read/
 │   │   ├── ED_Visits.py         # PDF extraction for NC DETECT data
 │   │   ├── load_sedd.py         # HCUP SEDD county aggregation
 │   │   └── read_cdc.py          # CDC data processing
 │   └── graph_making/
 │       └── nc_map.py            # Choropleth map generation
-├── data/
-│   ├── final/
-│   │   ├── merged_county_data.csv  # Primary merged dataset (100 x 300)
-│   │   ├── need_scores/            # Composite need score outputs
-│   │   └── model/                  # Legacy model outputs
-│   ├── AHRF/                       # HRSA Area Health Resource File
-│   ├── MA/                         # CMS Medicare Advantage enrollment
-│   ├── ED_visits/                  # NC DETECT ED visit PDFs
-│   ├── SVI/                        # CDC Social Vulnerability Index
-│   ├── places/                     # CDC PLACES chronic disease data
-│   └── NC Medicaid Reports/        # State Medicaid enrollment
+├── data/                        # NOT tracked in git (see .gitignore)
+│   ├── raw/                     # Untouched downloads by source
+│   ├── processed/               # Cleaned county-year panels
+│   └── final/                   # Pipeline-ready merged datasets
 ├── helpers/
-│   └── dictionaries.py             # County-to-region mappings
-├── results/                        # Pipeline outputs (figures, CSVs)
+│   └── dictionaries.py          # County-to-region mappings
+├── results/                     # Cross-sectional pipeline outputs
+│   └── forecast/                # Temporal forecast outputs
 ├── notebooks/
-│   ├── dominicworkbook.ipynb       # Data merging & need scores
-│   └── andrewworkbook.ipynb        # EDA & initial model comparison
+│   ├── analysis.ipynb           # Publication walkthrough
+│   ├── dominicworkbook.ipynb    # Data merging & need scores
+│   └── andrewworkbook.ipynb     # EDA & initial model comparison
 ├── requirements.txt
 └── README.md
 ```
+
+**Note:** Raw data files are not included in this repository due to size
+and licensing constraints. See `src/data_acquisition/README_DATA_SOURCES.md`
+for download instructions and URLs for every data source.
 
 ## Reproducing the Analysis
 
@@ -144,48 +157,86 @@ python -m src.model.pipeline
 ```
 
 Outputs are saved to `results/`:
-- `cv_results.csv` — Cross-validation results for all models
-- `holdout_model_a.csv` — Holdout test set performance
-- `bootstrap_ci.csv` — 95% confidence intervals
-- `excess_burden_scores.csv` — Per-county excess burden scores
-- `underserved_map.csv` — Full underserved classification (all 100 counties)
-- `feature_importance.csv` — Permutation importance rankings
-- `parsimony.csv` — Feature count vs. model performance
-- `fig_*.png` — Publication-ready figures
+- `cv_results.csv` -- Cross-validation results for all models
+- `holdout_model_a.csv` -- Holdout test set performance
+- `bootstrap_ci.csv` -- 95% confidence intervals
+- `excess_burden_scores.csv` -- Per-county excess burden scores
+- `underserved_map.csv` -- Full underserved classification (all 100 counties)
+- `feature_importance.csv` -- Permutation importance rankings
+- `parsimony.csv` -- Feature count vs. model performance
+- `fig_*.png` -- Publication-ready figures
+
+### Phase 2: Multi-Year Panel Analysis
+
+```bash
+# Build county x year panel from downloaded data sources
+python -m src.data_acquisition.build_panel --state NC --years 2015-2023
+
+# Train temporal model and generate forecasts
+python -m src.model.forecast --panel data/processed/panel_nc.csv
+```
+
+### Phase 3: Forward Projection (Government Deliverable)
+
+The forecasting module trains on historical data (2015-2021) and validates
+on held-out years (2022-2023). Because all predictor data is released
+6-12 months before ED visit data, the model can project excess burden
+forward to identify counties trending toward crisis -- without waiting
+for the next year's ED data.
+
+Outputs:
+- `results/forecast/county_risk_trends.csv` -- Priority-ranked counties
+- `results/forecast/fig_priority_matrix.png` -- Current burden vs. trajectory
+- `results/forecast/fig_risk_tiers_over_time.png` -- Tier shifts over time
+
+## Phased Research Design
+
+| Phase | Data | Output | Status |
+|-------|------|--------|--------|
+| **1. Cross-Section** | Single year (2021), 100 NC counties | Excess burden map, model comparison | Ready |
+| **2. Panel** | 2015-2023, 100 counties x 9 years | Temporal trends, year-over-year changes | Awaiting SEDD |
+| **3. Forecast** | Train 2015-2021, validate 2022-2023 | Forward projections, county risk tiers | Awaiting SEDD |
+| **4. Replication** | SC panel (2015-2023, 46 counties) | Cross-state validation | Awaiting SEDD |
+
+The key insight of Phase 3: **even without future ED data, we can identify
+which counties are projected to worsen** based on the trajectory of their
+publicly available predictor variables. This makes the model a leading
+indicator of healthcare quality rather than a lagging one.
 
 ## Generalizability
 
-This pipeline is designed to be state-agnostic. To apply it to another state:
+This pipeline is designed to be state-agnostic. Every predictor is a
+nationally standardized federal dataset available for all US counties.
 
-**Option A: Using HCUP SEDD (recommended for publication)**
-1. Obtain HCUP SEDD data through a Data Use Agreement ([AHRQ HCUP](https://hcup-us.ahrq.gov/tech_assist/dua.jsp))
-2. Export to CSV and aggregate by patient residence county:
-   ```bash
-   python -m src.database_read.load_sedd data/SEDD/nc_sedd.csv \
-       --year 2021 --merge data/final/merged_county_data.csv
-   ```
-3. Download predictor datasets (all nationally available) and merge
-4. Run `python -m src.model.pipeline`
+To apply to another state:
+1. Obtain county-level ED visit counts (HCUP SEDD recommended, or state
+   health department data)
+2. Download predictor datasets (all publicly available -- see
+   `src/data_acquisition/README_DATA_SOURCES.md` for URLs)
+3. Build the panel: `python -m src.data_acquisition.build_panel --state SC`
+4. Run the pipeline: `python -m src.model.pipeline`
 
-**Option B: Using state syndromic surveillance data**
-1. Obtain county-level ED visit counts (state health department or HCUP SID)
-2. Download the predictor datasets (all nationally available):
-   - CMS MA/MC enrollment by county
-   - CDC SVI by county
-   - CDC PLACES by county
-   - HRSA AHRF by county
-3. Merge into the same schema as `merged_county_data.csv`
-4. Run `python -m src.model.pipeline`
+**HCUP SEDD availability:** NC (2007-2023), SC (2006-2023). VA does not
+participate in SEDD. Data requires a DUA through
+[AHRQ](https://hcup-us.ahrq.gov/tech_assist/dua.jsp).
 
 ## Data Sources
 
-- **CMS Medicare Advantage Enrollment**: [data.cms.gov](https://data.cms.gov)
-- **CMS Medicare Geographic Variation**: [data.cms.gov](https://data.cms.gov/summary-statistics-on-use-and-payments/medicare-geographic-comparisons)
-- **CDC Social Vulnerability Index**: [atsdr.cdc.gov](https://www.atsdr.cdc.gov/place-health/php/svi/svi-data-documentation-download.html)
-- **CDC PLACES**: [cdc.gov/places](https://www.cdc.gov/places/)
-- **HRSA Area Health Resource File**: [data.hrsa.gov](https://data.hrsa.gov/data/download)
-- **NC DETECT**: [ncdetect.org](https://ncdetect.org/)
-- **NC Medicaid Enrollment**: [medicaid.ncdhhs.gov](https://medicaid.ncdhhs.gov/reports/nc-medicaid-enrollment-reports)
+| Source | URL | Coverage |
+|--------|-----|----------|
+| CMS Medicare Advantage | [cms.gov](https://www.cms.gov/data-research/statistics-trends-and-reports/medicare-advantagepart-d-contract-and-enrollment-data/monthly-enrollment-contract/plan/state/county) | 2007-present, monthly |
+| CMS Medicare Geographic Variation | [data.cms.gov](https://data.cms.gov/summary-statistics-on-use-and-payments/medicare-geographic-comparisons/medicare-geographic-variation-by-national-state-county) | 2007-present, annual |
+| NC Medicaid Enrollment | [medicaid.ncdhhs.gov](https://medicaid.ncdhhs.gov/reports/nc-medicaid-enrollment-reports) | SFY 1998-2026 |
+| CDC Social Vulnerability Index | [atsdr.cdc.gov](https://atsdr.cdc.gov/place-health/php/svi/svi-data-documentation-download.html) | 2010-2022, biennial |
+| CDC PLACES | [data.cdc.gov](https://data.cdc.gov/500-Cities-Places/PLACES-Local-Data-for-Better-Health-County-Data-20/swc5-untb) | 2020-2025 releases |
+| HRSA AHRF | [data.hrsa.gov](https://data.hrsa.gov/data/download) | 2019-2024 releases |
+| BLS Unemployment (LAUS) | [bls.gov](https://www.bls.gov/lau/data.htm) | 1990-present, monthly |
+| Census SAIPE | [census.gov](https://www.census.gov/programs-surveys/saipe/data/datasets.html) | 1995-present, annual |
+| County Health Rankings | [countyhealthrankings.org](https://www.countyhealthrankings.org/health-data/methodology-and-sources/data-documentation) | 2010-2025, annual |
+| FCC Broadband | [fcc.gov](https://www.fcc.gov/form-477-county-data-internet-access-services) | 2009-2024, semi-annual |
+| HCUP SEDD | [hcup-us.ahrq.gov](https://hcup-us.ahrq.gov/seddoverview.jsp) | NC: 2007-2023 (DUA required) |
+
+Full data procurement guide: `src/data_acquisition/README_DATA_SOURCES.md`
 
 ## Requirements
 
