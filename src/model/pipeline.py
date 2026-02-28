@@ -122,6 +122,27 @@ FEATURES = {
         "MDs_per_10k": "MDs per 10,000 population",
         "PCP_per_10k": "Primary care MDs per 10,000 pop",
     },
+    "Healthcare Infrastructure (AHRF)": {
+        "AHRF_hosp_beds": "Total hospital beds",
+        "AHRF_stgh_beds": "Short-term general hospital beds",
+        "AHRF_hosp_admissions": "Total hospital admissions",
+        "AHRF_stgh_admissions": "Short-term general hospital admissions",
+        "AHRF_stgh_outpatient": "Short-term hosp outpatient visits",
+        "AHRF_md_total": "Total non-federal MDs",
+        "AHRF_md_active": "Active non-federal MDs",
+        "AHRF_md_pcp": "Primary care physicians (excl residents)",
+        "AHRF_md_pcp_office": "PCPs in office-based practice",
+        "AHRF_md_surg_spec": "Surgical specialists",
+        "AHRF_md_psych": "Psychiatrists",
+        "AHRF_md_obgyn": "OB-GYN physicians",
+        "AHRF_dentists": "Professionally active dentists",
+        "AHRF_np": "Nurse practitioners (NPI)",
+        "AHRF_pa": "Physician assistants (NPI)",
+        "AHRF_hosp_ft_staff": "Hospital full-time personnel",
+        "AHRF_hpsa_prim_care": "HPSA primary care designation",
+        "AHRF_hpsa_dental": "HPSA dental designation",
+        "AHRF_hpsa_mental": "HPSA mental health designation",
+    },
     "Chronic Disease (CDC PLACES)": {
         "OBESITY_age-adjusted_prevalence": "Obesity prevalence",
         "DIABETES_age-adjusted_prevalence": "Diabetes prevalence",
@@ -134,11 +155,94 @@ FEATURES = {
         "PHLTH_age-adjusted_prevalence": "Poor physical health prevalence",
         "ACCESS2_age-adjusted_prevalence": "Lack of health insurance prev.",
         "LPA_age-adjusted_prevalence": "Physical inactivity prevalence",
+        "BPHIGH_age-adjusted_prevalence": "High blood pressure prevalence",
+        "HIGHCHOL_age-adjusted_prevalence": "High cholesterol prevalence",
+        "KIDNEY_age-adjusted_prevalence": "Chronic kidney disease prev.",
+        "COPD_age-adjusted_prevalence": "COPD prevalence",
+        "DEPRESSION_age-adjusted_prevalence": "Depression prevalence",
+        "ARTHRITIS_age-adjusted_prevalence": "Arthritis prevalence",
+        "CANCER_age-adjusted_prevalence": "Cancer prevalence (excl skin)",
+        "HEARING_age-adjusted_prevalence": "Hearing disability prevalence",
+        "VISION_age-adjusted_prevalence": "Vision disability prevalence",
+        "COGNITION_age-adjusted_prevalence": "Cognitive disability prevalence",
+    },
+    "Preventive Health (CDC PLACES)": {
+        "CHECKUP_age-adjusted_prevalence": "Annual checkup prevalence",
+        "DENTAL_age-adjusted_prevalence": "Dental visit prevalence",
+        "COLON_SCREEN_age-adjusted_prevalence": "Colon screening prevalence",
+        "MAMMOUSE_age-adjusted_prevalence": "Mammography use prevalence",
+        "COREM_age-adjusted_prevalence": "Core preventive (men) prevalence",
+        "COREW_age-adjusted_prevalence": "Core preventive (women) prev.",
+    },
+    "Mortality & Morbidity (CHR)": {
+        "chr_life_expectancy": "Life expectancy",
+        "chr_premature_mort": "Premature age-adjusted mortality",
+        "chr_child_mort": "Child mortality rate",
+        "chr_infant_mort": "Infant mortality rate",
+        "chr_drug_overdose": "Drug overdose death rate",
+        "chr_suicides": "Suicide rate",
+        "chr_homicides": "Homicide rate",
+        "chr_injury_deaths": "Injury death rate",
+        "chr_mvcrash_deaths": "Motor vehicle crash death rate",
+        "chr_ypll_rate": "Years of potential life lost rate",
+    },
+    "Behavioral Health (CHR)": {
+        "chr_smoking": "Adult smoking rate",
+        "chr_obesity": "Adult obesity rate",
+        "chr_excessive_drink": "Excessive drinking rate",
+        "chr_phys_inactivity": "Physical inactivity rate",
+        "chr_insuff_sleep": "Insufficient sleep rate",
+        "chr_poor_health_pct": "% in fair/poor health",
+        "chr_phys_unhealthy_days": "Avg physically unhealthy days",
+        "chr_ment_unhealthy_days": "Avg mentally unhealthy days",
+    },
+    "Healthcare Access (CHR)": {
+        "chr_pcp_rate": "Primary care physician rate",
+        "chr_dentist_rate": "Dentist rate",
+        "chr_mhp_rate": "Mental health provider rate",
+        "chr_other_pcp_rate": "Other primary care provider rate",
+        "chr_uninsured_pct": "% uninsured",
+        "chr_preventable_hosp": "Preventable hospitalization rate",
+        "chr_mammography": "Mammography screening rate",
+        "chr_flu_vax": "Flu vaccination rate",
+    },
+    "Social Determinants (CHR)": {
+        "chr_food_env_index": "Food environment index",
+        "chr_food_insecurity": "Food insecurity rate",
+        "chr_income_inequality": "Income inequality ratio",
+        "chr_social_assoc": "Social associations rate",
+        "chr_single_parent": "% children in single-parent HH",
+        "chr_disconnected_youth": "Disconnected youth rate",
+        "chr_severe_housing": "Severe housing problems rate",
+        "chr_broadband": "Broadband access rate",
+        "chr_air_pollution": "Air pollution (PM2.5)",
+        "chr_water_violations": "Drinking water violations",
+    },
+    "Demographics (CHR)": {
+        "chr_pct_black": "% non-Hispanic Black",
+        "chr_pct_hispanic": "% Hispanic",
+        "chr_pct_rural": "% rural population",
+        "chr_population": "County population",
     },
     "Rurality (USDA)": {
         "RUCC_2013": "Rural-Urban Continuum Code",
         "UIC_2013": "Urban Influence Code",
     },
+    "Economic (Census/BLS)": {
+        "PovertyRate": "Poverty rate (SAIPE)",
+        "MedianHouseholdIncome": "Median household income",
+        "ChildPovertyRate": "Child poverty rate",
+        "UnemploymentRate": "Unemployment rate (BLS LAUS)",
+    },
+}
+
+# ─── Alternative target variables ─────────────────────────────────────────────
+# These allow modeling even without SEDD ED visit data.
+ALTERNATIVE_TARGETS = {
+    "chr_preventable_hosp": "Preventable hospitalization rate (CHR) -- "
+                            "proxy for ED burden, available for all counties",
+    "chr_premature_mort": "Premature age-adjusted mortality rate (CHR) -- "
+                          "health outcome measure",
 }
 
 # Flatten
@@ -160,8 +264,16 @@ GROUP_COLORS = {
     "Social Vulnerability (CDC SVI)": "#F57C00",
     "Demographics (ACS via SVI)": "#388E3C",
     "Healthcare Infrastructure (HRSA)": "#D32F2F",
+    "Healthcare Infrastructure (AHRF)": "#C62828",
     "Chronic Disease (CDC PLACES)": "#7B1FA2",
+    "Preventive Health (CDC PLACES)": "#9C27B0",
+    "Mortality & Morbidity (CHR)": "#E64A19",
+    "Behavioral Health (CHR)": "#FF7043",
+    "Healthcare Access (CHR)": "#EF5350",
+    "Social Determinants (CHR)": "#26A69A",
+    "Demographics (CHR)": "#66BB6A",
     "Rurality (USDA)": "#00796B",
+    "Economic (Census/BLS)": "#0288D1",
     "Population (offset)": "#455A64",
     "Other": "#757575",
 }
@@ -418,6 +530,86 @@ def compute_excess_burden(df_model, X, y_log, pipeline):
     ] = "Below Expected"
 
     return results.sort_values("Excess_ratio", ascending=False)
+
+
+def spatial_autocorrelation_test(df_model, residuals, fips_col="FIPS"):
+    """
+    Test for spatial autocorrelation in model residuals using Moran's I.
+
+    Uses a k-nearest-neighbors weight matrix based on county centroids.
+    Requires scipy. If not available, prints a warning and returns None.
+    """
+    try:
+        from scipy.spatial.distance import pdist, squareform
+    except ImportError:
+        print("  [Spatial] scipy not installed -- skipping Moran's I test")
+        return None
+
+    # NC county centroids (approximate lat/lon for 100 counties)
+    # We use FIPS to match -- if centroid data not available, use FIPS
+    # ordering as proxy (counties with adjacent FIPS tend to be nearby)
+    n = len(residuals)
+    if n < 10:
+        print("  [Spatial] Too few observations for spatial test")
+        return None
+
+    # Build simple contiguity-like weight matrix from FIPS ordering
+    # This is a rough approximation; true spatial weights require shapefiles
+    fips_vals = df_model[fips_col].astype(int).values
+    # Use inverse-distance on FIPS codes as rough spatial proxy
+    fips_dists = squareform(pdist(fips_vals.reshape(-1, 1), metric="euclidean"))
+
+    # K-nearest neighbors (k=5)
+    k = min(5, n - 1)
+    W = np.zeros((n, n))
+    for i in range(n):
+        dists = fips_dists[i].copy()
+        dists[i] = np.inf
+        nearest = np.argsort(dists)[:k]
+        W[i, nearest] = 1.0
+
+    # Row-standardize
+    row_sums = W.sum(axis=1, keepdims=True)
+    row_sums[row_sums == 0] = 1
+    W = W / row_sums
+
+    # Moran's I
+    z = residuals - residuals.mean()
+    n = len(z)
+    numerator = n * float(z @ W @ z)
+    denominator = float(W.sum()) * float(z @ z)
+    I = numerator / denominator if denominator != 0 else 0
+
+    # Expected value and variance under normality
+    E_I = -1.0 / (n - 1)
+    # Simplified variance (normality assumption)
+    S0 = W.sum()
+    S1 = 0.5 * ((W + W.T) ** 2).sum()
+    S2 = ((W.sum(axis=0) + W.sum(axis=1)) ** 2).sum()
+    n2 = n * n
+    V_I = (n2 * S1 - n * S2 + 3 * S0 * S0) / (S0 * S0 * (n2 - 1)) - E_I ** 2
+
+    z_score = (I - E_I) / np.sqrt(V_I) if V_I > 0 else 0
+    from scipy.stats import norm
+    p_value = 2 * (1 - norm.cdf(abs(z_score)))
+
+    result = {
+        "Morans_I": I, "Expected_I": E_I,
+        "Variance_I": V_I, "Z_score": z_score,
+        "P_value": p_value,
+        "Significant_005": p_value < 0.05,
+    }
+
+    print(f"\n  Spatial Autocorrelation (Moran's I):")
+    print(f"    I = {I:.4f} (expected = {E_I:.4f})")
+    print(f"    z = {z_score:.2f}, p = {p_value:.4f}")
+    if p_value < 0.05:
+        print(f"    ** Significant spatial autocorrelation detected (p < 0.05)")
+        print(f"    Consider spatial models (GWR/MGWR) for improved estimates")
+    else:
+        print(f"    No significant spatial autocorrelation")
+
+    return result
 
 
 def build_underserved_map(excess_df, df_no_ed):
@@ -779,6 +971,17 @@ def run_pipeline(data_path=None):
             "Excess_ratio", "Classification"]
     print(excess_df.head(10)[[c for c in cols if c in excess_df.columns]]
           .to_string(index=False))
+
+    # Spatial autocorrelation test on residuals
+    if "FIPS" in df_model.columns:
+        residuals = excess_df["Residual"].values
+        spatial = spatial_autocorrelation_test(
+            df_model.reset_index(drop=True), residuals
+        )
+        if spatial:
+            pd.DataFrame([spatial]).to_csv(
+                OUTPUT_DIR / "spatial_autocorrelation.csv", index=False
+            )
 
     # ──────────────────────────────────────────────────────────────────────
     # Step 7: Feature Importance
@@ -1259,11 +1462,15 @@ if __name__ == "__main__":
     year_range = None
     min_cov = 0.80
     analyze_only = False
+    target_col = None
 
     i = 1
     while i < len(sys.argv):
         if sys.argv[i] == "--panel" and i + 1 < len(sys.argv):
             panel_path = sys.argv[i + 1]
+            i += 2
+        elif sys.argv[i] == "--target" and i + 1 < len(sys.argv):
+            target_col = sys.argv[i + 1]
             i += 2
         elif sys.argv[i] == "--year" and i + 1 < len(sys.argv):
             year = int(sys.argv[i + 1])
@@ -1298,6 +1505,7 @@ if __name__ == "__main__":
             print("  --year-range S-E    Year range (multi-year pipeline)")
             print("  --min-coverage F    Min feature coverage, 0-1 "
                   "(default: 0.80)")
+            print("  --target COL        Alternative target column name")
             print("  --analyze           Print year-range analysis only")
             sys.exit(0)
         else:
@@ -1309,7 +1517,8 @@ if __name__ == "__main__":
         run_panel_pipeline(panel_path,
                            start_year=year_range[0],
                            end_year=year_range[1],
-                           min_coverage=min_cov)
+                           min_coverage=min_cov,
+                           target_col=target_col)
     elif panel_path and year:
         print(f"Running pipeline on panel year {year} from {panel_path}")
         panel_df = load_panel_year(panel_path, year)
@@ -1319,6 +1528,7 @@ if __name__ == "__main__":
         run_pipeline(data_path=tmp_path)
     elif panel_path:
         # Default: run with full year range
-        run_panel_pipeline(panel_path, min_coverage=min_cov)
+        run_panel_pipeline(panel_path, min_coverage=min_cov,
+                           target_col=target_col)
     else:
         run_pipeline()

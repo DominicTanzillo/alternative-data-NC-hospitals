@@ -39,8 +39,17 @@ STATE_ABBR = "NC"
 YEARS = range(2015, 2024)  # 2015-2023
 RAW_DIR = Path("data/raw")
 
-# NC county FIPS codes (100 counties: 37001..37199, odd numbers)
-NC_COUNTY_FIPS = [f"37{i:03d}" for i in range(1, 200, 2)]
+# County FIPS codes by state
+NC_COUNTY_FIPS = [f"37{i:03d}" for i in range(1, 200, 2)]  # 100 counties
+SC_COUNTY_FIPS = [f"45{i:03d}" for i in range(1, 92, 2)]   # 46 counties
+
+STATE_COUNTY_FIPS_MAP = {
+    "NC": NC_COUNTY_FIPS,
+    "SC": SC_COUNTY_FIPS,
+}
+
+STATE_FIPS_MAP = {"NC": "37", "SC": "45"}
+STATE_FULLNAME = {"NC": "North Carolina", "SC": "South Carolina"}
 
 
 def _ensure_dir(path):
@@ -92,7 +101,7 @@ def download_saipe():
         SAEPOVRT0_17_PT = child poverty rate (0-17)
         NAME            = county name
     """
-    out_path = RAW_DIR / "saipe" / "saipe_nc_2015_2023.csv"
+    out_path = RAW_DIR / "saipe" / f"saipe_{STATE_ABBR.lower()}_2015_2023.csv"
     if out_path.exists():
         print(f"  [SAIPE] Already exists: {out_path}")
         return True
@@ -162,7 +171,7 @@ def download_bls_laus():
     BLS limits (no API key): 25 series per request, 20 years per series.
     100 NC counties -> 4 batches of 25.
     """
-    out_path = RAW_DIR / "bls_laus" / "laus_annual_nc.csv"
+    out_path = RAW_DIR / "bls_laus" / f"laus_annual_{STATE_ABBR.lower()}.csv"
     if out_path.exists():
         print(f"  [BLS] Already exists: {out_path}")
         return True
@@ -170,9 +179,10 @@ def download_bls_laus():
     _ensure_dir(out_path)
 
     # Build series IDs for unemployment rate (measure 03)
+    county_fips_list = STATE_COUNTY_FIPS_MAP.get(STATE_ABBR, NC_COUNTY_FIPS)
     series_ids = []
     fips_for_series = {}
-    for fips in NC_COUNTY_FIPS:
+    for fips in county_fips_list:
         # LAUS series: LAUCN + 5-digit county FIPS + 0000000003
         sid = f"LAUCN{fips}0000000003"
         series_ids.append(sid)
@@ -289,7 +299,7 @@ def download_places():
 
     Output is pivoted wide: one row per (FIPS, Year), measures as columns.
     """
-    out_path = RAW_DIR / "places" / "places_nc.csv"
+    out_path = RAW_DIR / "places" / f"places_{STATE_ABBR.lower()}.csv"
     if out_path.exists():
         print(f"  [PLACES] Already exists: {out_path}")
         return True
@@ -308,16 +318,12 @@ def download_places():
         ("swc5-untb", "2025 release"),    # data years 2022-2023
     ]
 
-    # NC county FIPS pattern for filtering (5-digit, starting with "37")
+    # County FIPS pattern for filtering (5-digit, starting with state FIPS)
     import re
-    nc_county_fips_re = re.compile(r"^37\d{3}$")
+    county_fips_re = re.compile(rf"^{STATE_FIPS}\d{{3}}$")
 
     # Reverse lookup: county name -> FIPS for datasets without locationid
-    name_to_fips = {name.upper(): fips for fips, name
-                    in zip(NC_COUNTY_FIPS,
-                           [f"37{i:03d}" for i in range(1, 200, 2)])}
-    # Build a proper mapping from the module-level dict (NC_COUNTY_FIPS list
-    # only has FIPS codes, not names). Build from known NC counties.
+    # Build name-to-FIPS mapping for the current state
     _nc_names = {
         "ALAMANCE": "37001", "ALEXANDER": "37003", "ALLEGHANY": "37005",
         "ANSON": "37007", "ASHE": "37009", "AVERY": "37011",
@@ -355,7 +361,30 @@ def download_places():
         "YANCEY": "37199",
     }
 
-    all_nc = []
+    # SC county name -> FIPS mapping (for 2020 release without locationid)
+    _sc_names = {
+        "ABBEVILLE": "45001", "AIKEN": "45003", "ALLENDALE": "45005",
+        "ANDERSON": "45007", "BAMBERG": "45009", "BARNWELL": "45011",
+        "BEAUFORT": "45013", "BERKELEY": "45015", "CALHOUN": "45017",
+        "CHARLESTON": "45019", "CHEROKEE": "45021", "CHESTER": "45023",
+        "CHESTERFIELD": "45025", "CLARENDON": "45027", "COLLETON": "45029",
+        "DARLINGTON": "45031", "DILLON": "45033", "DORCHESTER": "45035",
+        "EDGEFIELD": "45037", "FAIRFIELD": "45039", "FLORENCE": "45041",
+        "GEORGETOWN": "45043", "GREENVILLE": "45045", "GREENWOOD": "45047",
+        "HAMPTON": "45049", "HORRY": "45051", "JASPER": "45053",
+        "KERSHAW": "45055", "LANCASTER": "45057", "LAURENS": "45059",
+        "LEE": "45061", "LEXINGTON": "45063", "MCCORMICK": "45065",
+        "MARION": "45067", "MARLBORO": "45069", "NEWBERRY": "45071",
+        "OCONEE": "45073", "ORANGEBURG": "45075", "PICKENS": "45077",
+        "RICHLAND": "45079", "SALUDA": "45081", "SPARTANBURG": "45083",
+        "SUMTER": "45085", "UNION": "45087", "WILLIAMSBURG": "45089",
+        "YORK": "45091",
+    }
+
+    # Use appropriate name lookup for current state
+    _name_lookup = _nc_names if STATE_ABBR == "NC" else _sc_names
+
+    all_records = []
     for uid, label in places_datasets:
         release_count = 0
         offset = 0
@@ -363,7 +392,7 @@ def download_places():
         while True:
             url = (
                 f"https://data.cdc.gov/resource/{uid}.json"
-                f"?%24where=stateabbr%3D%27NC%27"
+                f"?%24where=stateabbr%3D%27{STATE_ABBR}%27"
                 f"&%24limit={limit}&%24offset={offset}"
             )
             try:
@@ -377,16 +406,16 @@ def download_places():
             # Some releases (2020) don't have locationid -- use county name
             for rec in data:
                 loc_id = rec.get("locationid", "")
-                if not loc_id or not nc_county_fips_re.match(loc_id):
+                if not loc_id or not county_fips_re.match(loc_id):
                     # Try to resolve FIPS from county name
                     cname = rec.get("locationname", "").strip().upper()
-                    resolved = _nc_names.get(cname, "")
+                    resolved = _name_lookup.get(cname, "")
                     if resolved:
                         rec["locationid"] = resolved
                         loc_id = resolved
 
-                if nc_county_fips_re.match(loc_id):
-                    all_nc.append(rec)
+                if county_fips_re.match(loc_id):
+                    all_records.append(rec)
                     release_count += 1
 
             print(f"    [PLACES] {label}: fetched {len(data)}, "
@@ -398,17 +427,17 @@ def download_places():
             print(f"    [PLACES] {label} total: {release_count} county records")
         time.sleep(0.5)
 
-    if not all_nc:
+    if not all_records:
         print("  [PLACES] No data retrieved!")
         return False
 
-    print(f"  [PLACES] Total NC county records: {len(all_nc)}")
+    print(f"  [PLACES] Total {STATE_ABBR} county records: {len(all_records)}")
 
     # Pivot: later releases overwrite earlier for overlapping year+measure.
     # We process datasets in release order (earliest first), so when a later
     # release has the same (FIPS, year, measure), it overwrites.
     pivot = {}
-    for rec in all_nc:
+    for rec in all_records:
         loc_id = rec.get("locationid", "")
         year = rec.get("year", "")
         measure_id = rec.get("measureid", "")
@@ -491,7 +520,7 @@ def download_chr():
 
     any_success = False
     for year in chr_years:
-        out_path = chr_dir / f"chr_nc_{year}.csv"
+        out_path = chr_dir / f"chr_{STATE_ABBR.lower()}_{year}.csv"
         if out_path.exists():
             print(f"  [CHR] Already exists: {out_path}")
             any_success = True
@@ -527,32 +556,32 @@ def download_chr():
                 text_from_header = "\n".join(lines[header_idx:])
                 reader = csv.DictReader(io.StringIO(text_from_header))
 
-                nc_rows = []
+                state_rows = []
                 for row in reader:
                     # Find state FIPS -- could be "stateFIPS", "State FIPS Code",
-                    # "5-digit FIPS Code" starting with 37, etc.
-                    state_fips = ""
+                    # "5-digit FIPS Code" starting with state prefix, etc.
+                    row_st_fips = ""
                     fips_5 = ""
                     for key, val in row.items():
                         if key and "statefips" in key.lower().replace(" ", ""):
-                            state_fips = str(val).strip()
+                            row_st_fips = str(val).strip()
                         if key and "fips" in key.lower() and "5" in key.lower():
                             fips_5 = str(val).strip().zfill(5)
                         if key and key.lower() == "fipscode":
                             fips_5 = str(val).strip().zfill(5)
 
-                    is_nc = (state_fips == "37" or
-                             (fips_5 and fips_5.startswith("37")))
-                    if is_nc:
-                        nc_rows.append(row)
+                    is_target = (row_st_fips == STATE_FIPS or
+                                 (fips_5 and fips_5.startswith(STATE_FIPS)))
+                    if is_target:
+                        state_rows.append(row)
 
-                if nc_rows:
-                    fieldnames = list(nc_rows[0].keys())
+                if state_rows:
+                    fieldnames = list(state_rows[0].keys())
                     with open(out_path, "w", newline="") as f:
                         writer = csv.DictWriter(f, fieldnames=fieldnames)
                         writer.writeheader()
-                        writer.writerows(nc_rows)
-                    print(f"    Saved {len(nc_rows)} NC records for {year}")
+                        writer.writerows(state_rows)
+                    print(f"    Saved {len(state_rows)} {STATE_ABBR} records for {year}")
                     any_success = True
                     downloaded = True
                     break
@@ -676,44 +705,37 @@ def download_svi():
         if raw_text.startswith("\ufeff"):
             raw_text = raw_text[1:]
         reader = csv.DictReader(io.StringIO(raw_text))
-        nc_rows = []
+        state_fullname = STATE_FULLNAME.get(STATE_ABBR, "")
+        svi_rows = []
         fieldnames = None
         for row in reader:
             if fieldnames is None:
                 fieldnames = list(row.keys())
-            # SVI uses different column names across years:
-            #   STATE = full name ("North Carolina")
-            #   ST_ABBR = "NC"
-            #   STATEFP = "37" (some years)
-            #   FIPS / STCNTY = 5-digit county FIPS
-            is_nc = False
-            # Check state abbreviation
-            if row.get("ST_ABBR", "").strip() == "NC":
-                is_nc = True
-            # Check state name
-            elif row.get("STATE", "").strip() == "North Carolina":
-                is_nc = True
-            # Check state FIPS
-            elif row.get("STATEFP", "").strip() == "37":
-                is_nc = True
-            # Check 5-digit FIPS starts with 37
-            elif row.get("FIPS", "").strip().startswith("37"):
-                is_nc = True
-            elif row.get("STCNTY", "").strip().startswith("37"):
-                is_nc = True
+            # SVI uses different column names across years
+            is_target = False
+            if row.get("ST_ABBR", "").strip() == STATE_ABBR:
+                is_target = True
+            elif state_fullname and row.get("STATE", "").strip() == state_fullname:
+                is_target = True
+            elif row.get("STATEFP", "").strip() == STATE_FIPS:
+                is_target = True
+            elif row.get("FIPS", "").strip().startswith(STATE_FIPS):
+                is_target = True
+            elif row.get("STCNTY", "").strip().startswith(STATE_FIPS):
+                is_target = True
 
-            if is_nc:
-                nc_rows.append(row)
+            if is_target:
+                svi_rows.append(row)
 
-        if nc_rows and fieldnames:
+        if svi_rows and fieldnames:
             with open(out_path, "w", newline="", encoding="utf-8") as f:
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
-                writer.writerows(nc_rows)
-            print(f"    [SVI] Saved {len(nc_rows)} NC counties for {year}")
+                writer.writerows(svi_rows)
+            print(f"    [SVI] Saved {len(svi_rows)} {STATE_ABBR} counties for {year}")
             any_success = True
         else:
-            print(f"    [SVI] No NC records found in {year} file")
+            print(f"    [SVI] No {STATE_ABBR} records found in {year} file")
 
         time.sleep(1)
 
@@ -1043,16 +1065,26 @@ D. HCUP SEDD (State Emergency Department Databases)
 # Main
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def main():
+def main(state=None):
+    global STATE_FIPS, STATE_ABBR
+
+    if state:
+        STATE_ABBR = state.upper()
+        STATE_FIPS = STATE_FIPS_MAP.get(STATE_ABBR, "37")
+    else:
+        STATE_ABBR = "NC"
+        STATE_FIPS = "37"
+
     print("=" * 65)
-    print("Download & Stage Public Data Sources (NC, 2015-2023)")
+    print(f"Download & Stage Public Data Sources ({STATE_ABBR}, 2015-2023)")
     print("=" * 65)
 
     RAW_DIR.mkdir(parents=True, exist_ok=True)
 
     # --- Stage existing local data first ---
-    print("\n--- STAGING EXISTING DATA ---")
-    stage_existing_data()
+    if STATE_ABBR == "NC":
+        print("\n--- STAGING EXISTING DATA ---")
+        stage_existing_data()
 
     # --- Automated downloads ---
     print("\n--- AUTOMATED DOWNLOADS (APIs) ---\n")
@@ -1076,10 +1108,16 @@ def main():
     print("[5/7] CDC SVI (social vulnerability)")
     results["SVI"] = download_svi()
 
-    print("\n[6/7] NC Medicaid (enrollment)")
-    results["Medicaid"] = download_medicaid()
+    if STATE_ABBR == "NC":
+        print("\n[6/7] NC Medicaid (enrollment)")
+        results["Medicaid"] = download_medicaid()
+    else:
+        print(f"\n[6/7] {STATE_ABBR} Medicaid (enrollment)")
+        print(f"  [Medicaid] {STATE_ABBR} Medicaid requires state-specific "
+              f"data source -- see manual instructions")
+        results["Medicaid"] = False
 
-    print("\n[7/7] CMS MA Enrollment (monthly files, 2015-2021)")
+    print(f"\n[7/7] CMS MA Enrollment (monthly files, 2015-2021)")
     print("  (This may take a while — up to 84 ZIP files)")
     results["MA"] = download_ma_enrollment()
 
@@ -1102,8 +1140,67 @@ def main():
             n = sum(1 for _ in subdir.glob("*") if _.is_file())
             print(f"  {subdir.name:20s}  {n} files")
 
-    print(f"\nNext step: python -m src.data_acquisition.build_panel --state NC --years 2015-2023")
+    print(f"\nNext step: python -m src.data_acquisition.build_panel "
+          f"--state {STATE_ABBR} --years 2015-2023")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# State Accessibility Assessment
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def print_state_assessment():
+    """Print summary of data accessibility by state for replication."""
+    print("\n" + "=" * 80)
+    print("STATE ACCESSIBILITY ASSESSMENT FOR REPLICATION")
+    print("=" * 80)
+    print(f"\n{'State':<6} {'SEDD/ED Data':<25} {'Predictors':<12} "
+          f"{'Ease':<8} {'Notes'}")
+    print("-" * 80)
+    states = [
+        ("NC", "SEDD 2007-2023 (DUA)", "Full", "High",
+         "Current study"),
+        ("SC", "SEDD 2000-2023 (DUA)", "Full", "High",
+         "Best replication target"),
+        ("CA", "Open HCAI data", "Full", "Medium",
+         "Large N (58 counties)"),
+        ("NY", "SPARCS open data", "Full", "Medium",
+         "62 counties"),
+        ("FL", "FloridaHealthFinder", "Full", "Medium",
+         "67 counties"),
+        ("VA", "No SEDD", "Full", "Low",
+         "Ruled out -- no ED visit data"),
+    ]
+    for st, ed, pred, ease, notes in states:
+        print(f"  {st:<4} {ed:<25} {pred:<12} {ease:<8} {notes}")
+    print()
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+
+    state = None
+    i = 1
+    while i < len(sys.argv):
+        if sys.argv[i] == "--state" and i + 1 < len(sys.argv):
+            state = sys.argv[i + 1].upper()
+            i += 2
+        elif sys.argv[i] == "--assess-states":
+            print_state_assessment()
+            sys.exit(0)
+        elif sys.argv[i] == "--help":
+            print("Download & Stage Public Data Sources")
+            print("=" * 50)
+            print()
+            print("Usage:")
+            print("  python -m src.data_acquisition.download_public_data")
+            print("  python -m src.data_acquisition.download_public_data --state SC")
+            print("  python -m src.data_acquisition.download_public_data --assess-states")
+            print()
+            print("Options:")
+            print("  --state STATE     State abbreviation (default: NC)")
+            print("  --assess-states   Print state data accessibility assessment")
+            sys.exit(0)
+        else:
+            i += 1
+
+    main(state=state)

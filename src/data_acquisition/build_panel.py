@@ -69,19 +69,41 @@ NC_COUNTY_FIPS = {
 
 STATE_FIPS = {"NC": "37", "SC": "45"}
 
+# SC county FIPS codes (46 counties)
+SC_COUNTY_FIPS = {
+    "45001": "Abbeville", "45003": "Aiken", "45005": "Allendale",
+    "45007": "Anderson", "45009": "Bamberg", "45011": "Barnwell",
+    "45013": "Beaufort", "45015": "Berkeley", "45017": "Calhoun",
+    "45019": "Charleston", "45021": "Cherokee", "45023": "Chester",
+    "45025": "Chesterfield", "45027": "Clarendon", "45029": "Colleton",
+    "45031": "Darlington", "45033": "Dillon", "45035": "Dorchester",
+    "45037": "Edgefield", "45039": "Fairfield", "45041": "Florence",
+    "45043": "Georgetown", "45045": "Greenville", "45047": "Greenwood",
+    "45049": "Hampton", "45051": "Horry", "45053": "Jasper",
+    "45055": "Kershaw", "45057": "Lancaster", "45059": "Laurens",
+    "45061": "Lee", "45063": "Lexington", "45065": "McCormick",
+    "45067": "Marion", "45069": "Marlboro", "45071": "Newberry",
+    "45073": "Oconee", "45075": "Orangeburg", "45077": "Pickens",
+    "45079": "Richland", "45081": "Saluda", "45083": "Spartanburg",
+    "45085": "Sumter", "45087": "Union", "45089": "Williamsburg",
+    "45091": "York",
+}
+
+STATE_COUNTY_FIPS = {"NC": NC_COUNTY_FIPS, "SC": SC_COUNTY_FIPS}
+
 # ---------------------------------------------------------------------------
 # Individual data source loaders
 # ---------------------------------------------------------------------------
 
 
-def load_saipe(data_dir, state_fips="37", years=range(2015, 2024)):
+def load_saipe(data_dir, state_fips="37", state="NC", years=range(2015, 2024)):
     """
     Load Census SAIPE poverty and income estimates.
 
-    Expected file: data_dir/saipe/saipe_nc_2015_2023.csv
+    Expected file: data_dir/saipe/saipe_{state}_2015_2023.csv
     Columns: FIPS, Year, PovertyRate, MedianHouseholdIncome, ChildPovertyRate
     """
-    path = Path(data_dir) / "saipe" / "saipe_nc_2015_2023.csv"
+    path = Path(data_dir) / "saipe" / f"saipe_{state.lower()}_2015_2023.csv"
     if not path.exists():
         # Try generic naming
         path = Path(data_dir) / "saipe" / f"saipe_{state_fips}.csv"
@@ -163,7 +185,7 @@ def load_svi_panel(data_dir, state_fips="37", years=range(2015, 2024)):
             # Try to find any column with 5-digit FIPS-like values
             for col in df.columns:
                 sample = df[col].dropna().astype(str).str.strip()
-                if sample.str.match(r"^37\d{3}$").mean() > 0.5:
+                if sample.str.match(rf"^{state_fips}\d{{3}}$").mean() > 0.5:
                     fips_col = col
                     break
         if fips_col is None:
@@ -208,14 +230,17 @@ def load_svi_panel(data_dir, state_fips="37", years=range(2015, 2024)):
     return result
 
 
-def load_places(data_dir, years=range(2015, 2024)):
+def load_places(data_dir, state="NC", years=range(2015, 2024)):
     """
     Load CDC PLACES county-level health data (pivoted wide).
 
-    Expected file: data_dir/places/places_nc.csv
+    Expected file: data_dir/places/places_{state}.csv
     Already pivoted by download_public_data.py.
     """
-    path = Path(data_dir) / "places" / "places_nc.csv"
+    path = Path(data_dir) / "places" / f"places_{state.lower()}.csv"
+    if not path.exists():
+        # Fallback to generic name
+        path = Path(data_dir) / "places" / "places_nc.csv"
     if not path.exists():
         print(f"  [PLACES] File not found: {path}")
         return pd.DataFrame()
@@ -235,7 +260,7 @@ def load_places(data_dir, years=range(2015, 2024)):
     return df
 
 
-def load_chr(data_dir, years=range(2015, 2024)):
+def load_chr(data_dir, state_fips="37", years=range(2015, 2024)):
     """
     Load County Health Rankings data files and extract key measures.
 
@@ -269,8 +294,12 @@ def load_chr(data_dir, years=range(2015, 2024)):
         2023: 2021, 2024: 2022, 2025: 2023,
     }
 
+    state_abbr = {v: k for k, v in STATE_FIPS.items()}.get(
+        state_fips, "nc"
+    ).lower()
+
     all_chr = []
-    for chr_file in sorted(chr_dir.glob("chr_nc_*.csv")):
+    for chr_file in sorted(chr_dir.glob(f"chr_{state_abbr}_*.csv")):
         try:
             release_year = int(chr_file.stem.split("_")[-1])
         except ValueError:
@@ -300,7 +329,7 @@ def load_chr(data_dir, years=range(2015, 2024)):
             # Fallback: look for any column with 5-digit FIPS-like values
             for c in df.columns:
                 sample = df[c].dropna().astype(str).str.strip()
-                if len(sample) > 0 and sample.str.match(r"^37\d{3}$").mean() > 0.3:
+                if len(sample) > 0 and sample.str.match(rf"^{state_fips}\d{{3}}$").mean() > 0.3:
                     fips_col = c
                     break
         if fips_col is None:
@@ -308,9 +337,9 @@ def load_chr(data_dir, years=range(2015, 2024)):
             continue
 
         df["FIPS"] = df[fips_col].astype(str).str.zfill(5)
-        df = df[df["FIPS"].str.startswith("37")]
-        # Exclude state-level rows (county FIPS = 37000)
-        df = df[df["FIPS"] != "37000"]
+        df = df[df["FIPS"].str.startswith(state_fips)]
+        # Exclude state-level rows (county FIPS = XX000)
+        df = df[df["FIPS"] != f"{state_fips}000"]
         df["Year"] = data_year
 
         # Extract known measures by searching column names
@@ -318,6 +347,7 @@ def load_chr(data_dir, years=range(2015, 2024)):
         # and descriptive names vary by year
         measures = {}
         chr_vars = {
+            # --- Original 7 measures ---
             "chr_ypll_rate": ["v001_rawvalue", "Years of Potential Life Lost Rate",
                               "Premature death"],
             "chr_poor_health_pct": ["v002_rawvalue", "Poor or fair health",
@@ -335,6 +365,78 @@ def load_chr(data_dir, years=range(2015, 2024)):
             "chr_preventable_hosp": ["v005_rawvalue",
                                      "Preventable hospital stays",
                                      "Preventable Hospitalization Rate"],
+            # --- Mortality & morbidity ---
+            "chr_life_expectancy": ["v147_rawvalue", "Life Expectancy",
+                                    "Life expectancy"],
+            "chr_premature_mort": ["v127_rawvalue", "Premature Age-Adjusted Mortality",
+                                   "Premature age-adjusted mortality"],
+            "chr_child_mort": ["v128_rawvalue", "Child Mortality",
+                               "Child mortality"],
+            "chr_infant_mort": ["v129_rawvalue", "Infant Mortality",
+                                "Infant mortality"],
+            "chr_drug_overdose": ["v138_rawvalue", "Drug Overdose Deaths",
+                                  "Drug overdose deaths"],
+            "chr_suicides": ["v161_rawvalue", "Suicides", "Suicide Rate"],
+            "chr_homicides": ["v015_rawvalue", "Homicides", "Homicide Rate"],
+            "chr_injury_deaths": ["v135_rawvalue", "Injury Deaths",
+                                  "Injury death"],
+            "chr_mvcrash_deaths": ["v039_rawvalue", "Motor Vehicle Crash Deaths",
+                                   "Motor vehicle crash death"],
+            # --- Behavioral health ---
+            "chr_smoking": ["v009_rawvalue", "Adult Smoking",
+                            "% Smokers", "Adult smoking"],
+            "chr_obesity": ["v011_rawvalue", "Adult Obesity",
+                            "% Adults with Obesity", "Adult obesity"],
+            "chr_excessive_drink": ["v049_rawvalue", "Excessive Drinking",
+                                    "Excessive drinking"],
+            "chr_phys_inactivity": ["v070_rawvalue", "Physical Inactivity",
+                                    "Physical inactivity"],
+            "chr_insuff_sleep": ["v143_rawvalue", "Insufficient Sleep",
+                                 "Insufficient sleep"],
+            # --- Healthcare access & quality ---
+            "chr_dentist_rate": ["v088_rawvalue", "Dentists",
+                                 "Dentist Rate", "Dentists rate"],
+            "chr_mhp_rate": ["v062_rawvalue", "Mental Health Providers",
+                             "Mental health provider"],
+            "chr_other_pcp_rate": ["v131_rawvalue", "Other Primary Care Providers",
+                                   "Other primary care provider"],
+            "chr_mammography": ["v050_rawvalue", "Mammography Screening",
+                                "Mammography screening"],
+            "chr_flu_vax": ["v155_rawvalue", "Flu Vaccinations",
+                            "Flu vaccination"],
+            # --- Social determinants ---
+            "chr_food_env_index": ["v133_rawvalue", "Food Environment Index",
+                                   "Food environment index"],
+            "chr_food_insecurity": ["v139_rawvalue", "Food Insecurity",
+                                    "Food insecurity"],
+            "chr_income_inequality": ["v044_rawvalue", "Income Inequality",
+                                      "Income inequality"],
+            "chr_social_assoc": ["v140_rawvalue", "Social Associations",
+                                 "Social association"],
+            "chr_single_parent": ["v082_rawvalue",
+                                  "Children in Single-Parent Households",
+                                  "Children in single-parent household"],
+            "chr_disconnected_youth": ["v157_rawvalue", "Disconnected Youth",
+                                       "Disconnected youth"],
+            "chr_severe_housing": ["v136_rawvalue", "Severe Housing Problems",
+                                   "Severe housing problem"],
+            "chr_broadband": ["v168_rawvalue", "Broadband Access",
+                              "Broadband access"],
+            # --- Environment ---
+            "chr_air_pollution": ["v125_rawvalue",
+                                  "Air Pollution - Particulate Matter",
+                                  "Air pollution"],
+            "chr_water_violations": ["v124_rawvalue",
+                                     "Drinking Water Violations",
+                                     "Drinking water violation"],
+            # --- Demographics ---
+            "chr_pct_black": ["v126_rawvalue", "% Non-Hispanic Black",
+                              "% non-Hispanic Black"],
+            "chr_pct_hispanic": ["v081_rawvalue", "% Hispanic",
+                                 "% Hispanic"],
+            "chr_pct_rural": ["v052_rawvalue", "% Rural", "% rural"],
+            "chr_population": ["v051_rawvalue", "Population",
+                               "Population raw value"],
         }
 
         for out_col, search_terms in chr_vars.items():
@@ -517,6 +619,108 @@ def load_medicaid(data_dir, years=range(2015, 2024)):
     return result
 
 
+def load_ahrf(data_dir, state_fips="37", years=range(2015, 2024)):
+    """
+    Load AHRF (Area Health Resources File) and extract key healthcare
+    infrastructure variables.
+
+    AHRF is a cross-sectional file with multi-year data embedded in column
+    suffixes (_20, _21, _22). We extract the most recent year available and
+    replicate across panel years (AHRF changes slowly).
+
+    Expected file: data/AHRF/ahrf2023.csv
+    """
+    # AHRF lives at the project level, not under data/raw
+    ahrf_path = Path("data/AHRF/ahrf2023.csv")
+    if not ahrf_path.exists():
+        ahrf_path = Path(data_dir) / "AHRF" / "ahrf2023.csv"
+    if not ahrf_path.exists():
+        print(f"  [AHRF] File not found: {ahrf_path}")
+        return pd.DataFrame()
+
+    df = pd.read_csv(ahrf_path, low_memory=False, dtype=str,
+                      encoding="latin-1")
+
+    # Filter to state
+    if "fips_st" in df.columns:
+        df = df[df["fips_st"].str.strip().str.strip('"') == state_fips]
+    elif "fips_st_cnty" in df.columns:
+        df = df[df["fips_st_cnty"].str.strip().str.strip('"').str[:2] == state_fips]
+
+    if len(df) == 0:
+        print(f"  [AHRF] No rows for state FIPS {state_fips}")
+        return pd.DataFrame()
+
+    # Build FIPS from fips_st + fips_cnty or fips_st_cnty
+    if "fips_st_cnty" in df.columns:
+        df["FIPS"] = df["fips_st_cnty"].str.strip().str.strip('"').str.zfill(5)
+    elif "fips_st" in df.columns and "fips_cnty" in df.columns:
+        df["FIPS"] = (df["fips_st"].str.strip().str.strip('"').str.zfill(2) +
+                      df["fips_cnty"].str.strip().str.strip('"').str.zfill(3))
+
+    # Columns to extract: (output_name, ahrf_column_name)
+    # Prefer _21 suffix (most recent complete year in AHRF 2023)
+    ahrf_vars = {
+        # Hospital infrastructure
+        "AHRF_hosp_beds": "hosp_beds_21",
+        "AHRF_stgh_beds": "stgh_hosp_beds_21",
+        "AHRF_hosp_admissions": "hosp_adm_21",
+        "AHRF_stgh_admissions": "stgh_hosp_adm_21",
+        "AHRF_stgh_outpatient": "stgh_hosp_based_outpt_care_21",
+        # Physician workforce (total and by specialty)
+        "AHRF_md_total": "md_nf_21",
+        "AHRF_md_active": "md_nf_activ_21",
+        "AHRF_md_pcp": "md_nf_prim_care_pc_excl_rsdnt_21",
+        "AHRF_md_pcp_office": "md_nf_pc_ofc_21",
+        "AHRF_md_gp": "md_nf_all_gp_21",
+        "AHRF_md_med_spec": "md_nf_all_med_spec_21",
+        "AHRF_md_surg_spec": "md_nf_all_surg_spec_21",
+        "AHRF_md_obgyn": "md_nf_obgyn_gen_21",
+        "AHRF_md_psych": "md_nf_psych_21",
+        # Other providers
+        "AHRF_dentists": "dent_nf_fed_proflly_activ_21",
+        "AHRF_np": "np_npi_21",
+        "AHRF_pa": "pa_npi_21",
+        # Population
+        "AHRF_population": "popn_est_21",
+        "AHRF_pop_65plus": "popn_est_ge65_21",
+        # HPSA designations
+        "AHRF_hpsa_prim_care": "hpsa_prim_care_23",
+        "AHRF_hpsa_dental": "hpsa_dent_23",
+        "AHRF_hpsa_mental": "hpsa_mentl_hlth_23",
+        # Hospital staffing
+        "AHRF_hosp_ft_staff": "stgh_hosp_prsnl_ft_21",
+        "AHRF_hosp_pt_staff": "stgh_hosp_prsnl_pt_21",
+    }
+
+    # Clean column names (AHRF has quoted headers)
+    df.columns = [c.strip().strip('"') for c in df.columns]
+
+    result = df[["FIPS"]].copy()
+    matched = 0
+    for out_name, ahrf_col in ahrf_vars.items():
+        if ahrf_col in df.columns:
+            result[out_name] = pd.to_numeric(
+                df[ahrf_col].str.strip().str.strip('"'),
+                errors="coerce"
+            )
+            matched += 1
+
+    print(f"  [AHRF] Loaded {len(result)} counties, "
+          f"{matched}/{len(ahrf_vars)} variables matched")
+
+    # AHRF is essentially cross-sectional -- replicate across panel years
+    panel_rows = []
+    for year in years:
+        chunk = result.copy()
+        chunk["Year"] = year
+        panel_rows.append(chunk)
+
+    panel = pd.concat(panel_rows, ignore_index=True)
+    print(f"  [AHRF] Built panel: {len(panel)} county-year records")
+    return panel
+
+
 def load_sedd_panel(data_dir, state_fips="37", years=range(2015, 2024)):
     """
     Load HCUP SEDD county totals for multiple years.
@@ -595,7 +799,7 @@ def build_county_year_panel(
         Master panel with columns: FIPS, County, Year, + all features.
     """
     state_fips = STATE_FIPS.get(state, "37")
-    fips_map = NC_COUNTY_FIPS if state == "NC" else {}
+    fips_map = STATE_COUNTY_FIPS.get(state, NC_COUNTY_FIPS if state == "NC" else {})
     years = list(years)
 
     print(f"Building county-year panel for {state} ({min(years)}-{max(years)})")
@@ -616,7 +820,7 @@ def build_county_year_panel(
     print(f"\nLoading data sources:")
 
     # 1. SAIPE (poverty, income)
-    saipe = load_saipe(data_dir, state_fips=state_fips, years=years)
+    saipe = load_saipe(data_dir, state_fips=state_fips, state=state, years=years)
     if not saipe.empty:
         panel = panel.merge(saipe, on=["FIPS", "Year"], how="left")
 
@@ -633,7 +837,7 @@ def build_county_year_panel(
                             on=["FIPS", "Year"], how="left")
 
     # 4. CDC PLACES
-    places = load_places(data_dir, years=years)
+    places = load_places(data_dir, state=state, years=years)
     if not places.empty:
         places_cols = [c for c in places.columns
                        if c not in ("FIPS", "Year", "County")]
@@ -641,7 +845,7 @@ def build_county_year_panel(
                             on=["FIPS", "Year"], how="left")
 
     # 5. County Health Rankings
-    chr_df = load_chr(data_dir, years=years)
+    chr_df = load_chr(data_dir, state_fips=state_fips, years=years)
     if not chr_df.empty:
         chr_cols = [c for c in chr_df.columns
                     if c not in ("FIPS", "Year", "County")]
@@ -657,7 +861,15 @@ def build_county_year_panel(
     if not ma.empty:
         panel = panel.merge(ma, on=["FIPS", "Year"], how="left")
 
-    # 7. NC Medicaid (merge by county name since Medicaid uses names)
+    # 7. AHRF (healthcare infrastructure)
+    ahrf = load_ahrf(data_dir, state_fips=state_fips, years=years)
+    if not ahrf.empty:
+        ahrf_cols = [c for c in ahrf.columns
+                     if c not in ("FIPS", "Year", "County")]
+        panel = panel.merge(ahrf[["FIPS", "Year"] + ahrf_cols],
+                            on=["FIPS", "Year"], how="left")
+
+    # 8. NC Medicaid (merge by county name since Medicaid uses names)
     medicaid = load_medicaid(data_dir, years=years)
     if not medicaid.empty and "Year" in medicaid.columns:
         # Normalize county names for merge -- use upper-case lookup to
@@ -678,7 +890,7 @@ def build_county_year_panel(
         if "Medicaid_Enrollment" in panel_med.columns:
             panel = panel_med
 
-    # 8. SEDD (target variable)
+    # 9. SEDD (target variable)
     sedd = load_sedd_panel(data_dir, state_fips=state_fips, years=years)
     if not sedd.empty:
         sedd_cols = [c for c in sedd.columns
