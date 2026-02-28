@@ -1,0 +1,37 @@
+Feature,Label,Group,Importance_mean,Importance_std
+log_Pop,log(Total population),Population (offset),0.41596194601013514,0.08867074156572798
+MHLTH_age-adjusted_prevalence,Poor mental health prevalence,Chronic Disease (CDC PLACES),0.05254736197527097,0.016675345304899496
+UIC_2013,Urban Influence Code,Rurality (USDA),0.04106531220145119,0.018670659179879222
+EP_MOBILE,% living in mobile homes,Demographics (ACS via SVI),0.03787308509387719,0.00691786789449206
+log_MC,log(Medicare enrollees),Insurance Coverage (CMS),0.03324210840100772,0.009264994742314162
+CASTHMA_age-adjusted_prevalence,Asthma prevalence,Chronic Disease (CDC PLACES),0.028409073175223395,0.010861675113511547
+log_MA,log(Medicare Advantage enrollees),Insurance Coverage (CMS),0.011245703967322032,0.0034894856597877917
+EP_UNINSUR,% uninsured,Demographics (ACS via SVI),0.010714301330311682,0.0038764806782852082
+PHLTH_age-adjusted_prevalence,Poor physical health prevalence,Chronic Disease (CDC PLACES),0.008199075261119878,0.004054213155515273
+CSMOKING_age-adjusted_prevalence,Smoking prevalence,Chronic Disease (CDC PLACES),0.007169796434034847,0.002621126624888198
+MDs_per_10k,"MDs per 10,000 population",Healthcare Infrastructure (HRSA),0.006447563407007706,0.002780415650396241
+GHLTH_age-adjusted_prevalence,Poor general health prevalence,Chronic Disease (CDC PLACES),0.00610880344513407,0.0019899217445257457
+EP_AGE65,% aged 65+,Demographics (ACS via SVI),0.004010164840007938,0.0019968215440493314
+RPL_THEME4,SVI: Housing Type / Transportation,Social Vulnerability (CDC SVI),0.00396181767166051,0.0010147470245348924
+EP_NOINT,% without internet,Demographics (ACS via SVI),0.003244182257467165,0.002081073571189042
+EP_AGE17,% aged under 17,Demographics (ACS via SVI),0.0032152573136904413,0.0011181468709703943
+EP_NOVEH,% households without vehicle,Demographics (ACS via SVI),0.003065480081325785,0.0008681080526969786
+EP_DISABL,% with disability,Demographics (ACS via SVI),0.0026446147117707764,0.0009238010722506482
+RPL_THEME1,SVI: Socioeconomic Status,Social Vulnerability (CDC SVI),0.0022841809692411823,0.0007849413632183264
+ACCESS2_age-adjusted_prevalence,Lack of health insurance prev.,Chronic Disease (CDC PLACES),0.0021395754713349905,0.0007308751995215401
+PCP_per_10k,"Primary care MDs per 10,000 pop",Healthcare Infrastructure (HRSA),0.002138183752937217,0.000896019877033705
+OBESITY_age-adjusted_prevalence,Obesity prevalence,Chronic Disease (CDC PLACES),0.001588758451403083,0.0005367774506252485
+LPA_age-adjusted_prevalence,Physical inactivity prevalence,Chronic Disease (CDC PLACES),0.0014653927551958083,0.0004875837229986619
+CHD_age-adjusted_prevalence,Coronary heart disease prevalence,Chronic Disease (CDC PLACES),0.0013090828258241112,0.0006087327318768178
+RPL_THEME2,SVI: Household Characteristics,Social Vulnerability (CDC SVI),0.0011376921697444863,0.00037038591555038224
+STROKE_age-adjusted_prevalence,Stroke prevalence,Chronic Disease (CDC PLACES),0.001132346566814472,0.00037682067461129417
+pub_insured_pct,% publicly insured (MA + MC / pop),Insurance Coverage (CMS),0.0009076891715984211,0.0003159953919822647
+DIABETES_age-adjusted_prevalence,Diabetes prevalence,Chronic Disease (CDC PLACES),0.0008894319004083624,0.00021610926854532584
+EP_UNEMP,% unemployed,Demographics (ACS via SVI),0.0008881688426111256,0.0005181816191289693
+EP_POV150,% below 150% poverty line,Demographics (ACS via SVI),0.0006990176954348744,0.00019279121714530734
+HPSA_Mental_2023,Mental health HPSA designation,Healthcare Infrastructure (HRSA),0.0005793993046542267,0.0002764081434293276
+EP_MINRTY,% racial/ethnic minority,Demographics (ACS via SVI),0.0005307405641330957,0.00012924345944861167
+RPL_THEME3,SVI: Racial/Ethnic Minority Status,Social Vulnerability (CDC SVI),0.0005050898279620464,0.00017752830687926916
+RUCC_2013,Rural-Urban Continuum Code,Rurality (USDA),0.0004594793023306713,0.0011824597859699277
+HPSA_PrimaryCare_2023,Primary care HPSA designation,Healthcare Infrastructure (HRSA),2.6079176190722347e-06,2.2002551677096197e-06
+HPSA_Dental_2023,Dental care HPSA designation,Healthcare Infrastructure (HRSA),-1.8503717077085943e-16,2.404059435806455e-16
