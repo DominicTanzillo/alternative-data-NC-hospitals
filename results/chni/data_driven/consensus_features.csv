@@ -1,0 +1,7 @@
+feature,column,direction,lasso_coef_state,enet_coef_state,rf_importance,national_lasso_coef,in_national_lasso
+Food Insecurity,Food Insecurity raw value,positive,0.22647344430674274,0.1766874548273511,0.057913567361842604,-0.0,False
+Teen Births,Teen Births raw value,positive,0.04732995442136426,0.0707586812000874,0.012961428028987865,52.727290500505546,True
+Median Household Income,Median Household Income raw value,invert,-0.04198776966572039,-0.0559815318737268,0.051600028571656645,12.482121539325727,True
+Voter Turnout,Voter Turnout raw value,invert,-0.0,-0.01964108547480549,0.00907258858544607,-36.06210089899622,True
+Frequent Mental Distress,Frequent Mental Distress raw value,positive,0.0,0.032470563349009836,0.009252446092776126,-0.0,False
+Suicides,Suicides raw value,positive,0.0,0.006745273747051142,0.013979382178557369,0.0,False

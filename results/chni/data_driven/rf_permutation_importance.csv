@@ -1,0 +1,35 @@
+feature,column,rf_importance,rf_importance_std
+Food Insecurity,Food Insecurity raw value,0.057913567361842604,0.010317841097520201
+Median Household Income,Median Household Income raw value,0.051600028571656645,0.0077155574689365646
+Poor or Fair Health,Poor or Fair Health raw value,0.03443426736228556,0.007333592512203206
+Life Expectancy,Life Expectancy raw value,0.030504787151835567,0.00592086661384187
+Broadband Access,Broadband Access raw value,0.030070724428545133,0.004771770700739409
+Premature Age-Adjusted Mortality,Premature Age-Adjusted Mortality raw value,0.027915189160051333,0.005109690680744687
+Premature Death,Premature Death raw value,0.023987617049985956,0.002987693925819623
+Poor Physical Health Days,Poor Physical Health Days raw value,0.016863786195985084,0.003989591171138213
+Census Participation,Census Participation raw value,0.016033538315435227,0.003579564735298834
+Unemployment,Unemployment raw value,0.014841681932372737,0.0033977073677427076
+Frequent Physical Distress,Frequent Physical Distress raw value,0.014824361517098856,0.003565538833006839
+Alcohol-Impaired Driving Deaths,Alcohol-Impaired Driving Deaths raw value,0.014711434302796082,0.0026561610124035467
+Suicides,Suicides raw value,0.013979382178557369,0.002515919387911246
+Teen Births,Teen Births raw value,0.012961428028987865,0.0027656138219252363
+Child Care Cost Burden,Child Care Cost Burden raw value,0.01292822568975551,0.0027943212622040968
+Children in Poverty,Children in Poverty raw value,0.012376864578730525,0.002262853051675446
+Diabetes Prevalence,Diabetes Prevalence raw value,0.0112213622980873,0.002156287549625901
+Firearm Fatalities,Firearm Fatalities raw value,0.010889501515745621,0.00243635988403773
+Access to Exercise Opportunities,Access to Exercise Opportunities raw value,0.009957323371358344,0.0017711031591657032
+Some College,Some College raw value,0.009362247832529359,0.00082045983558594
+Frequent Mental Distress,Frequent Mental Distress raw value,0.009252446092776126,0.0019560990184517802
+Children Eligible for Free or Reduced Price Lunch,Children Eligible for Free or Reduced Price Lunch raw value,0.009084078466791646,0.002178626473418703
+Voter Turnout,Voter Turnout raw value,0.00907258858544607,0.001451196740230811
+Traffic Volume,Traffic Volume raw value,0.0076176401859476646,0.0012750181987662796
+School Segregation,School Segregation raw value,0.007011924853365954,0.0014102662850894628
+Long Commute - Driving Alone,Long Commute - Driving Alone raw value,0.006988401292506526,0.0017128600977816448
+High School Completion,High School Completion raw value,0.006724340643632172,0.0012183818834425818
+Food Environment Index,Food Environment Index raw value,0.006688605565694509,0.0011104695265202443
+Motor Vehicle Crash Deaths,Motor Vehicle Crash Deaths raw value,0.006305054514047289,0.0013682569910608148
+Driving Alone to Work,Driving Alone to Work raw value,0.005936903184935779,0.0023881861820778225
+Air Pollution - Particulate Matter,Air Pollution - Particulate Matter raw value,0.005818151567475312,0.0019052270999607877
+Physical Inactivity,Physical Inactivity raw value,0.005721495576191759,0.001460840949281079
+Residential Segregation - Black/White,Residential Segregation - Black/White raw value,0.005696372710466402,0.0013797133261835843
+High School Graduation,High School Graduation raw value,0.005278103349051018,0.0010192771207193736

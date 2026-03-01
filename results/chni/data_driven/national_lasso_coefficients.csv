@@ -1,0 +1,36 @@
+feature,column,national_lasso_coef
+Physical Inactivity,Physical Inactivity raw value,193.81627167668125
+Insufficient Sleep,Insufficient Sleep raw value,164.2715490782938
+Adult Smoking,Adult Smoking raw value,124.8560593148021
+Life Expectancy,Life Expectancy raw value,-122.66532691966987
+Some College,Some College raw value,95.98557252114992
+Other Primary Care Providers,Other Primary Care Providers raw value,81.18307431259952
+Air Pollution - Particulate Matter,Air Pollution - Particulate Matter raw value,81.09341490562565
+Income Inequality,Income Inequality raw value,73.44254639256522
+Driving Alone to Work,Driving Alone to Work raw value,70.1608607833562
+Long Commute - Driving Alone,Long Commute - Driving Alone raw value,68.88865934198428
+Traffic Volume,Traffic Volume raw value,66.92858808944118
+Children Eligible for Free or Reduced Price Lunch,Children Eligible for Free or Reduced Price Lunch raw value,-59.410921136780836
+High School Graduation,High School Graduation raw value,55.07089390794853
+Teen Births,Teen Births raw value,52.727290500505546
+Severe Housing Problems,Severe Housing Problems raw value,-47.60013539420004
+Dentists,Dentists raw value,-46.74865463962934
+Low Birthweight,Low Birthweight raw value,40.16425630933836
+Voter Turnout,Voter Turnout raw value,-36.06210089899622
+Drinking Water Violations,Drinking Water Violations raw value,35.59686766643514
+Mammography Screening,Mammography Screening raw value,-35.20379593673652
+Food Environment Index,Food Environment Index raw value,32.15673068990121
+Excessive Drinking,Excessive Drinking raw value,23.800053300440506
+Child Care Centers,Child Care Centers raw value,-21.612171545172547
+Severe Housing Cost Burden,Severe Housing Cost Burden raw value,-17.192980979698444
+Poor Mental Health Days,Poor Mental Health Days raw value,-14.598014618974105
+Gender Pay Gap,Gender Pay Gap raw value,-12.695685226068639
+Median Household Income,Median Household Income raw value,12.482121539325727
+Alcohol-Impaired Driving Deaths,Alcohol-Impaired Driving Deaths raw value,-10.36018876798629
+Census Participation,Census Participation raw value,9.22541176719262
+Social Associations,Social Associations raw value,8.228616008463977
+Child Care Cost Burden,Child Care Cost Burden raw value,6.171342213352481
+Limited Access to Healthy Foods,Limited Access to Healthy Foods raw value,-5.341125636411241
+Uninsured Children,Uninsured Children raw value,-5.317713153829722
+Access to Exercise Opportunities,Access to Exercise Opportunities raw value,5.217506136722907
+Motor Vehicle Crash Deaths,Motor Vehicle Crash Deaths raw value,-0.9062563733179373
