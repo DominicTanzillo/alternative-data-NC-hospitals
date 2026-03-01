@@ -70,6 +70,62 @@ Counties are classified as:
 - Bootstrap confidence intervals (1,000 resamples)
 - 8 models compared: OLS, Ridge, Lasso, Elastic Net, KNN, SVR, Random Forest, Gradient Boosting
 
+## Community Health Need Index (CHNi)
+
+A zero-parameter composite index that quantifies county-level healthcare need using only publicly available data. Two versions exist:
+
+### CHNi v1 (Hand-Picked)
+
+Five epidemiologically-motivated variables, equal-weight z-score average:
+
+| Component | Source | Direction |
+|-----------|--------|-----------|
+| Diabetes prevalence | CDC PLACES | Higher = more need |
+| Life expectancy | County Health Rankings | Lower = more need |
+| PCP rate (pop-to-provider) | County Health Rankings | Higher = more need (shortage) |
+| Physical inactivity | County Health Rankings | Higher = more need |
+| Poverty rate | Census SAIPE | Higher = more need |
+
+### CHNi v2 (Data-Driven)
+
+Rather than hand-picking variables, we let real ED outcome data select them. Using residence-based ED visits from California (HCAI) and Potentially Preventable Visit rates from New York (SPARCS) as ground truth, three methods (LASSO, Elastic Net, Random Forest) screened 72 CHR candidate features. Six consensus variables emerged:
+
+| Component | Methods Selected By | Direction |
+|-----------|-------------------|-----------|
+| Food Insecurity | LASSO + Elastic Net + RF | Higher = more need |
+| Teen Births | LASSO + Elastic Net + RF | Higher = more need |
+| Median Household Income | LASSO + Elastic Net + RF | Lower = more need |
+| Frequent Mental Distress | Elastic Net + RF | Higher = more need |
+| Voter Turnout | Elastic Net + RF | Lower = more need |
+| Suicides | Elastic Net + RF | Higher = more need |
+
+### Validation Results
+
+| Target | v1 (hand-picked) | v2 (data-driven) |
+|--------|-----------------|------------------|
+| CA residence-based ED rate | r = 0.35 | **r = 0.60** |
+| NY residence-based PPV rate | r = 0.60 | r = 0.59 / **0.65** (weighted) |
+| Leave-one-state-out (CA->NY) | -- | r = 0.60 |
+| Leave-one-state-out (NY->CA) | -- | r = 0.62 |
+
+v2 nearly doubles v1's correlation with California ED visits while matching performance on New York. Leave-one-state-out cross-validation confirms generalization.
+
+### Policy Implications
+
+The v2 variables are all actionable policy levers -- food insecurity, teen births, mental distress, and suicide rates are targets for intervention programs, while voter turnout and median income reflect civic engagement and economic opportunity. In North Carolina, v2 reveals a Western mountain "despair" pattern (high suicides, mental distress, low voter turnout) invisible to v1, while confirming the Eastern rural and South Central corridors as high-need.
+
+### Running the Analysis
+
+```bash
+# Full data-driven CHNi pipeline (6 phases + NC regional analysis)
+python scripts/data_driven_chni.py
+
+# Interactive US county choropleth map (requires plotly)
+python scripts/map_chni_v2.py
+```
+
+Outputs are saved to `results/chni/data_driven/` including CSVs, validation figures, and an interactive HTML map of all ~3,100 US counties.
+
 ## Key Findings
 
 ### Model Performance
@@ -157,8 +213,17 @@ The panel builder downloads and assembles data from multiple public sources. Cov
 │   └── final/                       # Pipeline-ready merged datasets
 ├── helpers/
 │   └── dictionaries.py              # County-to-region mappings
+├── scripts/
+│   ├── data_driven_chni.py          # Data-driven CHNi v2 (6-phase pipeline)
+│   ├── map_chni_v2.py               # Interactive US county choropleth
+│   ├── validate_chni_ca_residence.py # CA residence-based ED validation
+│   ├── validate_chni_ny_sparcs.py   # NY SPARCS PPV validation
+│   └── validate_chni_real_ed.py     # NC SHEPS ED validation
 ├── results/                         # Cross-sectional pipeline outputs
-│   └── forecast/                    # Temporal forecast outputs
+│   ├── forecast/                    # Temporal forecast outputs
+│   └── chni/                        # CHNi scores, figures, validation
+│       ├── out_of_state/            #   Multi-state validation (CA, NY, FL)
+│       └── data_driven/             #   CHNi v2 analysis & interactive map
 ├── notebooks/
 │   ├── analysis.ipynb               # Publication walkthrough
 │   ├── dominicworkbook.ipynb        # Data merging & need scores
@@ -239,10 +304,11 @@ Outputs:
 
 | Phase | Data | Output | Status |
 |-------|------|--------|--------|
-| **1. Cross-Section** | Single year (2021), 100 NC counties | Excess burden map, model comparison | Ready |
+| **1. Cross-Section** | Single year (2021), 100 NC counties | Excess burden map, model comparison | Complete |
 | **2. Panel** | 2015-2023, 100 counties x 9 years | Temporal trends, year-over-year changes | Awaiting SEDD |
 | **3. Forecast** | Train 2015-2021, validate 2022-2023 | Forward projections, county risk tiers | Awaiting SEDD |
 | **4. Replication** | SC panel (2015-2023, 46 counties) | Cross-state validation | Awaiting SEDD |
+| **5. CHNi** | CA + NY residence-based ED data | Data-driven need index, interactive map | Complete |
 
 The key insight of Phase 3: **even without future ED data, we can identify
 which counties are projected to worsen** based on the trajectory of their
@@ -280,6 +346,8 @@ participate in SEDD. Data requires a DUA through
 | Census SAIPE | [census.gov](https://www.census.gov/programs-surveys/saipe/data/datasets.html) | 1995-present, annual |
 | County Health Rankings | [countyhealthrankings.org](https://www.countyhealthrankings.org/health-data/methodology-and-sources/data-documentation) | 2010-2025, annual |
 | FCC Broadband | [fcc.gov](https://www.fcc.gov/form-477-county-data-internet-access-services) | 2009-2024, semi-annual |
+| CA HCAI ED Visits | [data.chhs.ca.gov](https://data.chhs.ca.gov/) | 2008-2024, by patient county of residence |
+| NY SPARCS PPV Rates | [health.data.ny.gov](https://health.data.ny.gov/) | 2011-2023, by patient county of residence |
 | HCUP SEDD | [hcup-us.ahrq.gov](https://hcup-us.ahrq.gov/seddoverview.jsp) | NC: 2007-2023 (DUA required) |
 
 Full data procurement guide: `src/data_acquisition/README_DATA_SOURCES.md`
