@@ -1,0 +1,6 @@
+column,invert,label,source,rationale
+DIABETES_age-adjusted_prevalence,False,Diabetes prevalence,CDC PLACES,Marker of chronic disease burden; strongly associated with ED utilization and preventable hospitalizations
+chr_life_expectancy,True,Life expectancy (inverted),County Health Rankings,Summary measure of population health; low life expectancy indicates systemic health disadvantage.
+chr_pcp_rate,True,"PCP rate (inverted, shortage)",County Health Rankings,Primary care physician supply; shortage forces reliance on emergency departments for routine care.
+PovertyRate,False,Poverty rate,Census SAIPE,"Economic deprivation limits access to preventive care, healthy food, and stable housing."
+chr_phys_inactivity,False,Physical inactivity,County Health Rankings,"Modifiable behavioral risk factor upstream of diabetes, cardiovascular disease, and obesity."
